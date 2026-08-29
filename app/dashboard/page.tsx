@@ -1,148 +1,76 @@
-import {
-  Bell,
-  ChevronDown,
-  CircleAlert,
-  FileChartColumn,
-  LayoutDashboard,
-  LogOut,
-  Package,
-  Search,
-  Settings,
-  ShoppingBag,
-  Store,
-  TrendingUp,
-  Users,
-} from 'lucide-react';
+'use client';
 
+import { FormEvent, useState } from 'react';
+import { AlertTriangle, Award, BarChart3, Bell, Building2, CircleDollarSign, Database, LogOut, Plus, Settings, ShoppingCart, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Progress } from '@/components/ui/progress';
+import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
-const nav = [
-  { label: 'Vue générale', icon: LayoutDashboard, active: true },
-  { label: 'Ventes', icon: ShoppingBag },
-  { label: 'Stocks', icon: Package },
-  { label: 'Revendeurs', icon: Users },
-  { label: 'Dépôts', icon: Store },
-  { label: 'Rapports', icon: FileChartColumn },
+type Account = { id: number; name: string; email: string; role: 'administrateur' | 'depositaire' | 'revendeur'; depot: string; phone?: string; active: boolean };
+type Issue = { id: number; seller: string; depot: string; category: string; description: string; date: string; state: 'ouverte' | 'en_cours' | 'resolue' };
+
+const initialAccounts: Account[] = [
+  { id: 1, name: 'Admin FanMilk', email: 'admin@fanmilk.tg', role: 'administrateur', depot: 'Vue nationale', active: true },
+  { id: 2, name: 'Kodjo Amégan', email: 'kodjo@fanmilk.tg', role: 'depositaire', depot: 'SUPER DEPOT', active: true },
+  { id: 3, name: 'Ama Kossi', email: 'ama.rev@fanmilk.tg', role: 'revendeur', depot: 'SUPER DEPOT', phone: '22890112438', active: true },
 ];
 
-const declarations = [
-  { name: 'Ama K.', depot: 'SUPER DEPOT', amount: '48 500', pieces: 31, status: 'Validée', time: '08:42' },
-  { name: 'Kodjo A.', depot: 'SAINT MARTIN', amount: '36 000', pieces: 24, status: 'Validée', time: '08:31' },
-  { name: 'Dédévi M.', depot: 'GERM DOSSEH', amount: '29 500', pieces: 19, status: 'À vérifier', time: '08:16' },
-  { name: 'Yao B.', depot: 'YEHONAM', amount: '41 000', pieces: 28, status: 'Validée', time: '07:58' },
+const performances = [
+  { seller: 'Ama Kossi', depot: 'SUPER DEPOT', amount: '682 500', score: 92, average: 78, period: 'Août 2026', suggested: 35000 },
+  { seller: 'Dédévi Afi', depot: 'GERM DOSSEH', amount: '641 000', score: 88, average: 76, period: 'Août 2026', suggested: 30000 },
+  { seller: 'Yao Mensah', depot: 'SUPER DEPOT', amount: '541 000', score: 84, average: 78, period: 'Août 2026', suggested: 25000 },
 ];
 
-const bars = [48, 65, 54, 88, 70, 95, 82, 106, 91, 124, 108, 138, 126, 151];
+const initialIssues: Issue[] = [
+  { id: 81, seller: 'Dédévi Afi', depot: 'GERM DOSSEH', category: 'Équipement', description: 'Glacière endommagée pendant la tournée.', date: '28 août', state: 'ouverte' },
+  { id: 80, seller: 'Yao Mensah', depot: 'SUPER DEPOT', category: 'Produit', description: 'Rupture FanChoco sur la zone.', date: '27 août', state: 'en_cours' },
+];
 
-const productSales = [
-  { name: 'FanXtra', category: 'Yaourt glacé', sold: 82, share: '28,7 %', image: '/products/fan-xtra.png', tone: 'bg-sky-50' },
-  { name: 'FanYogo', category: 'Yaourt fraise', sold: 71, share: '24,8 %', image: '/products/fan-yogo.png', tone: 'bg-pink-50' },
-  { name: 'FanVanille', category: 'Boisson lactée', sold: 59, share: '20,6 %', image: '/products/fan-vanille.png', tone: 'bg-amber-50' },
-  { name: 'Yaourts', category: 'Nature & vanille', sold: 48, share: '16,8 %', image: '/products/yaourt-nature.png', tone: 'bg-blue-50' },
+const globalRows = [
+  { type: 'Vente', ref: 'V-1042', seller: 'Ama Kossi', depot: 'SUPER DEPOT', detail: '48 500 FCFA', status: 'en_attente' },
+  { type: 'Stock', ref: 'S-301', seller: 'Ama Kossi', depot: 'SUPER DEPOT', detail: 'FXT · 22 unités', status: 'en_attente' },
+  { type: 'Vente', ref: 'V-1038', seller: 'Dédévi Afi', depot: 'GERM DOSSEH', detail: '62 000 FCFA', status: 'validee' },
 ];
 
 export default function DashboardPage() {
+  const [accounts, setAccounts] = useState(initialAccounts);
+  const [issues, setIssues] = useState(initialIssues);
+  const [showAccountForm, setShowAccountForm] = useState(false);
+  const [prize, setPrize] = useState<(typeof performances)[number] | null>(null);
+  const [prizeAmount, setPrizeAmount] = useState('');
+  const [notice, setNotice] = useState('');
+
+  function createAccount(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); const form = new FormData(event.currentTarget); const role = form.get('role') as Account['role'];
+    setAccounts((rows) => [...rows, { id: Date.now(), name: String(form.get('name')), email: String(form.get('email')), role, depot: role === 'administrateur' ? 'Vue nationale' : String(form.get('depot')), phone: String(form.get('phone') || ''), active: true }]);
+    setShowAccountForm(false); setNotice('Compte créé. Les identifiants temporaires peuvent maintenant être communiqués à l’utilisateur.');
+  }
+
+  function nextIssueState(id: number) { setIssues((rows) => rows.map((row) => row.id !== id ? row : { ...row, state: row.state === 'ouverte' ? 'en_cours' : 'resolue' })); setNotice('État de la difficulté enregistré.'); }
+  function assignPrize() { if (!prize || !Number(prizeAmount)) return; setNotice(`Prime de ${Number(prizeAmount).toLocaleString('fr-FR')} FCFA attribuée à ${prize.seller}. Une notification sera envoyée.`); setPrize(null); setPrizeAmount(''); }
+
   return (
-    <main className="min-h-screen bg-[#f3f7fb] text-foreground lg:grid lg:grid-cols-[248px_1fr]">
-      <aside className="hidden min-h-screen flex-col bg-[#073b86] px-4 py-5 text-white lg:flex">
-        <a href="/" className="flex items-center gap-3 px-2">
-          <img src="/fan-site/logo-clean.png" alt="FanMilk" className="h-11 w-14 object-contain" />
-          <span><span className="block text-sm font-extrabold italic">FanMilk Togo</span><span className="text-[10px] uppercase tracking-[.16em] text-blue-100/60">Dashboard</span></span>
-        </a>
-        <nav className="mt-10 space-y-1" aria-label="Navigation du Dashboard">
-          {nav.map(({ label, icon: Icon, active }) => (
-            <a key={label} href="#" className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${active ? 'bg-white text-[#073b86]' : 'text-blue-100/70 hover:bg-white/8 hover:text-white'}`}>
-              <Icon className="size-4" /> {label}
-            </a>
-          ))}
-        </nav>
-        <div className="mt-auto space-y-1 border-t border-white/10 pt-4">
-          <a href="#" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-emerald-100/65 hover:bg-white/8 hover:text-white"><Settings className="size-4" /> Paramètres</a>
-          <a href="/" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-emerald-100/65 hover:bg-white/8 hover:text-white"><LogOut className="size-4" /> Déconnexion</a>
-        </div>
-      </aside>
-
-      <section className="min-w-0">
-        <header className="flex h-18 items-center justify-between border-b border-emerald-950/8 bg-white px-5 lg:px-8">
-          <div className="flex items-center gap-3 lg:hidden"><img src="/fan-site/logo-clean.png" alt="FanMilk" className="h-10 w-12 object-contain" /><span className="font-extrabold text-[#073b86]">Dashboard</span></div>
-          <div className="relative hidden w-full max-w-sm md:block">
-            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Rechercher un revendeur, un dépôt…" className="h-10 rounded-xl bg-[#f6f8f5] pl-10" />
-          </div>
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" className="relative rounded-xl"><Bell /><span className="absolute right-2 top-2 size-2 rounded-full border-2 border-white bg-red-500" /></Button>
-            <div className="h-8 w-px bg-border" />
-            <button className="flex items-center gap-2 rounded-xl px-2 py-1.5 text-left hover:bg-muted">
-              <span className="grid size-8 place-items-center rounded-full bg-primary/10 text-xs font-black text-primary">AD</span>
-              <span className="hidden sm:block"><span className="block text-xs font-bold">Admin FanMilk</span><span className="text-[10px] text-muted-foreground">Administrateur</span></span>
-              <ChevronDown className="size-4 text-muted-foreground" />
-            </button>
-          </div>
-        </header>
-
+    <main className="min-h-screen bg-[#f3f7fb] text-[#122043] lg:grid lg:grid-cols-[250px_1fr]">
+      <aside className="hidden min-h-screen flex-col bg-[#073b86] px-4 py-5 text-white lg:flex"><a href="/" className="flex items-center gap-3 px-2"><img src="/fan-site/logo-clean.png" alt="FanMilk" className="h-12 w-15 object-contain" /><span><strong className="block text-sm italic">FanMilk Togo</strong><small className="text-[10px] uppercase tracking-[.16em] text-blue-100/60">Administration nationale</small></span></a><nav className="mt-10 space-y-1 text-sm font-bold">{[{ href: '#indicateurs', label: 'Pilotage national', icon: BarChart3 },{ href: '#comptes', label: 'Comptes utilisateurs', icon: Users },{ href: '#performances', label: 'Performances & primes', icon: Award },{ href: '#difficultes', label: 'Difficultés PRIME', icon: AlertTriangle },{ href: '#donnees', label: 'Ventes & stocks', icon: Database }].map(({ href, label, icon: Icon },index) => <a key={label} href={href} className={`flex items-center gap-3 rounded-xl px-3 py-3 ${index === 0 ? 'bg-white text-[#073b86]' : 'text-blue-100/70 hover:bg-white/10 hover:text-white'}`}><Icon className="size-4" />{label}</a>)}</nav><div className="mt-auto border-t border-white/10 pt-4"><a href="#" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-blue-100/65"><Settings className="size-4" />Paramètres</a><a href="/connexion" className="mt-1 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-blue-100/65"><LogOut className="size-4" />Déconnexion</a></div></aside>
+      <section className="min-w-0"><header className="sticky top-0 z-50 flex min-h-20 items-center justify-between border-b border-blue-950/8 bg-white/95 px-5 backdrop-blur lg:px-8"><div><strong className="block text-sm text-[#082f70]">Vue nationale</strong><span className="text-xs text-slate-500">Aucun filtre de dépôt imposé</span></div><div className="flex items-center gap-3"><Badge className="hidden bg-blue-50 text-[#0a4ea8] sm:flex">Source prévue · PostgreSQL Render</Badge><Button variant="ghost" size="icon"><Bell /></Button><span className="grid size-9 place-items-center rounded-full bg-blue-50 text-xs font-black text-[#0a4ea8]">AD</span><div className="hidden sm:block"><strong className="block text-xs">Admin FanMilk</strong><span className="text-[10px] text-slate-500">Administrateur</span></div></div></header>
         <div className="p-5 lg:p-8">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div><p className="text-sm font-semibold text-primary">Samedi 29 août 2026</p><h1 className="mt-1 text-3xl font-black tracking-[-.035em] text-emerald-950">Bonjour, Admin 👋</h1><p className="mt-2 text-sm text-muted-foreground">Voici l’activité commerciale de votre réseau aujourd’hui.</p></div>
-            <Button className="h-10 rounded-xl font-bold"><FileChartColumn /> Exporter le rapport</Button>
-          </div>
+          {notice && <div className="mb-5 flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-800"><Bell className="size-5" />{notice}<button className="ml-auto" onClick={() => setNotice('')}>×</button></div>}
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between"><div><p className="text-sm font-black text-[#0a4ea8]">Samedi 29 août 2026</p><h1 className="mt-1 text-4xl font-black text-[#082f70]">Pilotage du réseau</h1><p className="mt-2 text-slate-500">Toutes les données consolidées par Vendor‑Bot.</p></div><div className="flex gap-3"><select className="h-10 rounded-xl border bg-white px-3 text-sm font-bold"><option>Août 2026</option><option>Juillet 2026</option></select><select className="h-10 rounded-xl border bg-white px-3 text-sm font-bold"><option>Tous les dépôts</option><option>SUPER DEPOT</option><option>GERM DOSSEH</option><option>NBUKE RAMCO</option></select></div></div>
+          <div id="indicateurs" className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[
+            { label: 'Revendeurs actifs', value: '84', note: 'réseau national', icon: Users, tone: 'bg-blue-50 text-blue-700' },{ label: 'CA validé', value: '18,7 M', note: 'FCFA sur la période', icon: CircleDollarSign, tone: 'bg-emerald-50 text-emerald-700' },{ label: 'Difficultés ouvertes', value: '12', note: 'à suivre', icon: AlertTriangle, tone: 'bg-red-50 text-red-700' },{ label: 'Primes attribuées', value: '1,24 M', note: 'FCFA sur la période', icon: Award, tone: 'bg-yellow-50 text-yellow-800' },
+          ].map(({ label,value,note,icon: Icon,tone }) => <Card key={label} className="border-0 bg-white ring-blue-950/7"><CardContent className="p-5"><span className={`grid size-11 place-items-center rounded-xl ${tone}`}><Icon className="size-5" /></span><p className="mt-5 text-xs font-bold text-slate-500">{label}</p><p className="mt-1 text-3xl font-black text-[#082f70]">{value}</p><p className="text-xs text-slate-400">{note}</p></CardContent></Card>)}</div>
 
-          <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {[
-              { label: 'Ventes du jour', value: '428 500', suffix: 'FCFA', icon: TrendingUp, note: '+14,2 % vs hier' },
-              { label: 'Produits vendus', value: '286', suffix: 'unités', icon: ShoppingBag, note: '+8,6 % vs hier' },
-              { label: 'Déclarations', value: '68', suffix: 'sur 84', icon: FileChartColumn, note: '81 % reçues' },
-              { label: 'Alertes actives', value: '5', suffix: 'à traiter', icon: CircleAlert, note: '2 prioritaires' },
-            ].map(({ label, value, suffix, icon: Icon, note }, index) => (
-              <Card key={label} className="border-0 bg-white ring-emerald-950/7">
-                <CardHeader className="pb-1"><div className="flex items-center justify-between"><span className="grid size-9 place-items-center rounded-xl bg-primary/8 text-primary"><Icon className="size-4" /></span><Badge variant={index === 3 ? 'destructive' : 'secondary'}>{note}</Badge></div></CardHeader>
-                <CardContent><p className="text-xs font-semibold text-muted-foreground">{label}</p><p className="mt-2 text-3xl font-black tracking-tight text-emerald-950">{value} <span className="text-xs font-semibold text-muted-foreground">{suffix}</span></p></CardContent>
-              </Card>
-            ))}
-          </div>
+          <Card id="comptes" className="mt-6 border-0 bg-white ring-blue-950/7"><CardHeader><div className="flex flex-wrap items-center justify-between gap-3"><div><CardTitle>Gestion des comptes utilisateurs</CardTitle><CardDescription>Création, rattachement au dépôt et désactivation</CardDescription></div><Button onClick={() => setShowAccountForm((value) => !value)} className="bg-[#0a4ea8]"><Plus />Créer un compte</Button></div></CardHeader><CardContent>{showAccountForm && <form onSubmit={createAccount} className="mb-6 grid gap-4 rounded-2xl bg-blue-50/70 p-5 sm:grid-cols-2 xl:grid-cols-3"><div><Label>Nom *</Label><Input name="name" required className="mt-2 bg-white" /></div><div><Label>Adresse électronique *</Label><Input name="email" type="email" required className="mt-2 bg-white" /></div><div><Label>Rôle *</Label><select name="role" className="mt-2 h-10 w-full rounded-md border bg-white px-3"><option value="administrateur">Administrateur</option><option value="depositaire">Dépositaire</option><option value="revendeur">Revendeur</option></select></div><div><Label>Dépôt de rattachement</Label><select name="depot" className="mt-2 h-10 w-full rounded-md border bg-white px-3"><option>SUPER DEPOT</option><option>GERM DOSSEH</option><option>NBUKE RAMCO</option></select></div><div><Label>Téléphone revendeur</Label><Input name="phone" placeholder="228XXXXXXXX" className="mt-2 bg-white" /></div><div className="flex items-end gap-2"><Button type="submit">Enregistrer</Button><Button type="button" variant="outline" onClick={() => setShowAccountForm(false)}>Annuler</Button></div></form>}<div className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Nom</TableHead><TableHead>Email</TableHead><TableHead>Rôle</TableHead><TableHead>Dépôt</TableHead><TableHead>Statut</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader><TableBody>{accounts.map((row) => <TableRow key={row.id}><TableCell className="font-bold">{row.name}{row.phone && <small className="block text-slate-400">{row.phone}</small>}</TableCell><TableCell>{row.email}</TableCell><TableCell><Badge variant="outline">{row.role}</Badge></TableCell><TableCell>{row.depot}</TableCell><TableCell><Badge className={row.active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}>{row.active ? 'actif' : 'désactivé'}</Badge></TableCell><TableCell className="text-right"><Button size="sm" variant="outline" onClick={() => setAccounts((rows) => rows.map((item) => item.id === row.id ? { ...item, active: !item.active } : item))}>{row.active ? 'Désactiver' : 'Réactiver'}</Button></TableCell></TableRow>)}</TableBody></Table></div></CardContent></Card>
 
-          <div className="mt-5 grid gap-5 xl:grid-cols-[1.55fr_.75fr]">
-            <Card className="border-0 bg-white ring-emerald-950/7">
-              <CardHeader><CardTitle>Évolution des ventes</CardTitle><CardDescription>Montants déclarés sur les 14 derniers jours</CardDescription></CardHeader>
-              <CardContent>
-                <div className="flex h-56 items-end gap-2 border-b border-l border-emerald-950/10 pl-3">
-              {bars.map((height, index) => <span key={index} title={`${height * 4000} FCFA`} className="flex-1 rounded-t-md bg-gradient-to-t from-[#073b86] to-sky-400" style={{ height }} />)}
-                </div>
-                <div className="mt-3 flex justify-between text-[10px] font-semibold text-muted-foreground"><span>16 AOÛT</span><span>22 AOÛT</span><span>29 AOÛT</span></div>
-              </CardContent>
-            </Card>
-            <Card className="border-0 bg-[#073b86] text-white ring-0">
-              <CardHeader><CardTitle className="text-white">Objectif mensuel</CardTitle><CardDescription className="text-emerald-100/60">Août 2026</CardDescription></CardHeader>
-              <CardContent>
-                <p className="text-4xl font-black">78<span className="text-xl text-yellow-300">%</span></p>
-                <Progress value={78} className="mt-5 [&_[data-slot=progress-indicator]]:bg-yellow-300" />
-                <div className="mt-6 grid grid-cols-2 gap-4 text-sm"><div><p className="text-emerald-100/50">Réalisé</p><p className="mt-1 font-bold">18,7 M FCFA</p></div><div><p className="text-emerald-100/50">Objectif</p><p className="mt-1 font-bold">24 M FCFA</p></div></div>
-                <p className="mt-6 rounded-xl bg-white/7 p-3 text-xs leading-5 text-emerald-100/65">À ce rythme, l’objectif sera atteint le 31 août.</p>
-              </CardContent>
-            </Card>
-          </div>
+          <Card id="performances" className="mt-6 border-0 bg-white ring-blue-950/7"><CardHeader><CardTitle>Performances et attribution des primes</CardTitle><CardDescription>Règle proposée : score ≥ 80 et CA supérieur à la moyenne du dépôt</CardDescription></CardHeader><CardContent className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Revendeur</TableHead><TableHead>Dépôt</TableHead><TableHead>Période</TableHead><TableHead>CA</TableHead><TableHead>Score / moyenne</TableHead><TableHead className="text-right">Prime</TableHead></TableRow></TableHeader><TableBody>{performances.map((row) => <TableRow key={row.seller}><TableCell className="font-bold">{row.seller}</TableCell><TableCell>{row.depot}</TableCell><TableCell>{row.period}</TableCell><TableCell className="font-black">{row.amount} FCFA</TableCell><TableCell><Badge className="bg-blue-50 text-blue-700">{row.score} / {row.average}</Badge></TableCell><TableCell className="text-right"><Button size="sm" onClick={() => { setPrize(row); setPrizeAmount(String(row.suggested)); }} className="bg-yellow-400 text-[#082f70] hover:bg-yellow-300"><Award />Attribuer</Button></TableCell></TableRow>)}</TableBody></Table></CardContent></Card>
 
-          <Card className="mt-5 border-0 bg-white ring-blue-950/7">
-            <CardHeader className="flex-row items-end justify-between"><div><CardTitle>Ventes par produit</CardTitle><CardDescription>Les références FanMilk les plus vendues aujourd’hui</CardDescription></div><Badge className="bg-blue-50 text-[#0757b9]">260 unités suivies</Badge></CardHeader>
-            <CardContent><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{productSales.map((product) => <div key={product.name} className={`flex items-center gap-4 rounded-2xl ${product.tone} p-4`}><span className="grid size-20 shrink-0 place-items-center rounded-2xl bg-white shadow-sm"><img src={product.image} alt={product.name} className="max-h-16 max-w-18 object-contain" /></span><div><p className="font-black text-[#073b86]">{product.name}</p><p className="text-xs text-slate-500">{product.category}</p><p className="mt-2 text-xl font-black">{product.sold} <span className="text-[10px] font-bold text-slate-500">unités</span></p><p className="text-xs font-bold text-emerald-600">{product.share} des ventes</p></div></div>)}</div></CardContent>
-          </Card>
-
-          <Card className="mt-5 border-0 bg-white ring-emerald-950/7">
-            <CardHeader className="flex-row items-center justify-between"><div><CardTitle>Dernières déclarations</CardTitle><CardDescription>Mises à jour reçues depuis WhatsApp</CardDescription></div><Button variant="outline" size="sm">Voir toutes</Button></CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader><TableRow><TableHead>Revendeur</TableHead><TableHead>Dépôt</TableHead><TableHead>Ventes</TableHead><TableHead>Produits</TableHead><TableHead>Statut</TableHead><TableHead className="text-right">Heure</TableHead></TableRow></TableHeader>
-                <TableBody>{declarations.map((row) => <TableRow key={`${row.name}-${row.time}`}><TableCell className="font-bold">{row.name}</TableCell><TableCell>{row.depot}</TableCell><TableCell className="font-semibold">{row.amount} FCFA</TableCell><TableCell>{row.pieces}</TableCell><TableCell><Badge variant={row.status === 'Validée' ? 'secondary' : 'outline'} className={row.status === 'Validée' ? 'bg-emerald-50 text-emerald-700' : 'border-yellow-300 bg-yellow-50 text-yellow-800'}>{row.status}</Badge></TableCell><TableCell className="text-right text-muted-foreground">{row.time}</TableCell></TableRow>)}</TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+          <section className="mt-6 grid gap-6 xl:grid-cols-[.9fr_1.1fr]"><Card id="difficultes" className="border-0 bg-white ring-blue-950/7"><CardHeader><CardTitle>Gestion des difficultés</CardTitle><CardDescription>L’administrateur seul peut mettre à jour l’état</CardDescription></CardHeader><CardContent className="space-y-3">{issues.map((row) => <div key={row.id} className="rounded-2xl border p-4"><div className="flex flex-wrap items-center justify-between gap-2"><span><strong>{row.seller}</strong><small className="ml-2 text-slate-400">{row.depot}</small></span><Badge>{row.state}</Badge></div><p className="mt-2 text-sm font-bold text-[#0a4ea8]">{row.category}</p><p className="mt-1 text-sm text-slate-600">{row.description}</p><div className="mt-3 flex items-center justify-between"><small className="text-slate-400">{row.date}</small>{row.state !== 'resolue' && <Button size="sm" variant="outline" onClick={() => nextIssueState(row.id)}>{row.state === 'ouverte' ? 'Passer en cours' : 'Marquer résolue'}</Button>}</div></div>)}</CardContent></Card><Card id="donnees" className="border-0 bg-white ring-blue-950/7"><CardHeader><CardTitle>Consultation des ventes et stocks</CardTitle><CardDescription>Vue globale · aucune validation possible côté administrateur</CardDescription></CardHeader><CardContent className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Type</TableHead><TableHead>Référence</TableHead><TableHead>Revendeur</TableHead><TableHead>Dépôt</TableHead><TableHead>Détail</TableHead><TableHead>Statut</TableHead></TableRow></TableHeader><TableBody>{globalRows.map((row) => <TableRow key={row.ref}><TableCell>{row.type}</TableCell><TableCell className="font-bold">{row.ref}</TableCell><TableCell>{row.seller}</TableCell><TableCell>{row.depot}</TableCell><TableCell>{row.detail}</TableCell><TableCell><Badge variant="outline">{row.status}</Badge></TableCell></TableRow>)}</TableBody></Table></CardContent></Card></section>
         </div>
       </section>
+      {prize && <div className="fixed inset-0 z-[100] grid place-items-center bg-[#07162f]/65 p-5 backdrop-blur-sm"><Card className="w-full max-w-lg bg-white"><CardHeader><Award className="size-9 text-yellow-500" /><CardTitle>Attribuer une prime à {prize.seller}</CardTitle><CardDescription>{prize.period} · CA {prize.amount} FCFA · score {prize.score}/100</CardDescription></CardHeader><CardContent><Label>Montant proposé (modifiable)</Label><Input type="number" value={prizeAmount} onChange={(event) => setPrizeAmount(event.target.value)} className="mt-2" /><p className="mt-3 rounded-xl bg-yellow-50 p-3 text-xs text-yellow-900">Calcul proposé : seuil de score atteint et chiffre d’affaires supérieur à la moyenne du dépôt.</p><div className="mt-5 flex justify-end gap-3"><Button variant="outline" onClick={() => setPrize(null)}>Annuler</Button><Button onClick={assignPrize} className="bg-[#0a4ea8]">Enregistrer et notifier</Button></div></CardContent></Card></div>}
     </main>
   );
 }
-

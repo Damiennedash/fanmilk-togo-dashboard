@@ -1,117 +1,31 @@
 'use client';
 
 import { FormEvent, useState } from 'react';
-import { ArrowLeft, ArrowRight, Building2, Eye, EyeOff, LockKeyhole, ShieldCheck, UserCog } from 'lucide-react';
-
+import { ArrowLeft, ArrowRight, Building2, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, UserCog } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { Label } from '@/components/ui/label';
 
 export default function ConnexionPage() {
-  const [step, setStep] = useState<'credentials' | 'otp'>('credentials');
   const [role, setRole] = useState<'admin' | 'depositaire'>('depositaire');
   const [showPassword, setShowPassword] = useState(false);
-  const [code, setCode] = useState('');
-  const [error, setError] = useState('');
+  const [forgotten, setForgotten] = useState(false);
+  const [message, setMessage] = useState('');
 
-  function submitCredentials(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError('');
-    setStep('otp');
-  }
-
-  function submitOtp(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (code !== '123456') {
-      setError('Le code saisi est incorrect. Pour cette démonstration, utilisez 123456.');
-      return;
-    }
-    window.location.assign(role === 'depositaire' ? '/depositaire' : '/dashboard');
-  }
+  function submitCredentials(event: FormEvent<HTMLFormElement>) { event.preventDefault(); window.location.assign(role === 'depositaire' ? '/depositaire' : '/dashboard'); }
+  function submitReset(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setMessage('Si cette adresse existe, un lien de réinitialisation lui sera envoyé.'); }
 
   return (
-    <main className="grid min-h-screen bg-[#f4f8fc] lg:grid-cols-[1.05fr_.95fr]">
-      <section className="relative hidden overflow-hidden bg-[#073b86] p-12 text-white lg:flex lg:flex-col lg:justify-between">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_75%_20%,rgba(250,204,21,.25),transparent_26%),radial-gradient(circle_at_15%_80%,rgba(56,189,248,.22),transparent_30%)]" />
-        <a href="/" className="relative flex items-center gap-3">
-          <img src="/fan-site/logo-clean.png" alt="FanMilk" className="h-14 w-18 object-contain" />
-          <span className="text-lg font-extrabold italic tracking-tight">FanMilk Togo</span>
-        </a>
-        <div className="relative max-w-lg">
-          <img src="/products/fan-assortiment.png" alt="Produits FanMilk" className="mb-4 h-64 w-full object-contain drop-shadow-2xl" />
-          <p className="text-xs font-bold uppercase tracking-[.2em] text-yellow-300">Espace commercial sécurisé</p>
-          <h1 className="mt-4 text-4xl font-black leading-[1.02] tracking-[-.045em]">Pilotez toutes les saveurs FanMilk.</h1>
-          <p className="mt-5 max-w-md text-base leading-7 text-blue-100/70">Retrouvez les ventes de FanXtra, FanYogo, FanChoco, FanVanille et de nos yaourts.</p>
-        </div>
-        <div className="relative flex items-center gap-3 text-sm text-blue-100/70"><ShieldCheck className="size-5 text-yellow-300" /> Connexion chiffrée · Session sécurisée · Journal d’accès</div>
+    <main className="grid min-h-screen bg-[#f4f8fc] lg:grid-cols-[1.08fr_.92fr]">
+      <section className="relative hidden overflow-hidden bg-[radial-gradient(circle_at_68%_45%,#0e78db_0%,#0754ad_40%,#052f79_75%,#031d52_100%)] p-12 text-white lg:flex lg:flex-col lg:justify-between">
+        <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(circle_at_center,white_1px,transparent_1px)] [background-size:34px_34px]" />
+        <a href="/" className="relative z-40 flex items-center gap-3"><img src="/fan-site/logo-clean.png" alt="FanMilk" className="h-15 w-20 object-contain" /><span className="text-xl font-extrabold italic">FanMilk Togo</span></a>
+        <div className="relative z-10 mx-auto h-[520px] w-full max-w-[680px]"><div className="fan-orbit-glow absolute inset-[12%] rounded-full" /><img src="/fan-site/milk-orbit.png" alt="" aria-hidden="true" className="fan-milk-orbit absolute inset-[16%] z-10 h-[68%] w-[68%] object-contain" /><div className="fan-pack-wrap fan-pack-wrap-one"><img src="/fan-site/fanxtra.png" alt="FanXtra" className="fan-xtra-pack fan-xtra-pack-one" /></div><div className="fan-pack-wrap fan-pack-wrap-two"><img src="/fan-site/fanxtra.png" alt="FanXtra" className="fan-xtra-pack fan-xtra-pack-two" /></div><div className="fan-nutrient fan-nutrient-b2"><span>B<sub>2</sub></span></div><div className="fan-nutrient fan-nutrient-b6"><span>B<sub>6</sub></span></div><div className="fan-nutrient fan-nutrient-phosphore"><span>PHOSPHORE</span></div><div className="fan-nutrient fan-nutrient-iode"><span>IODE</span></div><div className="fan-nutrient fan-nutrient-calcium"><span>CALCIUM</span></div></div>
+        <div className="relative z-40"><p className="text-xs font-black uppercase tracking-[.22em] text-yellow-300">Espace commercial sécurisé</p><h1 className="mt-3 text-4xl font-black leading-none">Vos décisions alimentent le réseau.</h1><p className="mt-4 max-w-xl text-sm leading-6 text-blue-100/70">Vendor‑Bot collecte les déclarations WhatsApp, PostgreSQL les conserve sur Render, puis chaque profil accède uniquement aux fonctions autorisées.</p></div>
       </section>
 
-      <section className="flex min-h-screen items-center justify-center px-5 py-10 sm:px-10">
-        <div className="w-full max-w-md">
-          <a href="/" className="mb-10 inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-primary"><ArrowLeft className="size-4" /> Retour à l’accueil</a>
-
-          <div className="mb-8 flex items-center gap-3 lg:hidden">
-            <img src="/fan-site/logo-clean.png" alt="FanMilk" className="h-12 w-16 object-contain" />
-            <span className="font-extrabold text-emerald-950">FANMILK TOGO</span>
-          </div>
-
-          {step === 'credentials' ? (
-            <>
-              <p className="text-xs font-bold uppercase tracking-[.16em] text-primary">Étape 1 sur 2</p>
-              <h2 className="mt-3 text-3xl font-black tracking-[-.035em] text-emerald-950">Bienvenue sur votre espace</h2>
-              <p className="mt-3 text-sm leading-6 text-muted-foreground">Choisissez votre profil puis saisissez vos identifiants professionnels.</p>
-
-              <div className="mt-7 grid grid-cols-2 gap-3" aria-label="Type de compte">
-                <button type="button" onClick={() => setRole('depositaire')} className={`rounded-2xl border p-4 text-left transition-colors ${role === 'depositaire' ? 'border-[#0a4ea8] bg-blue-50 text-[#082f70]' : 'bg-white text-slate-500'}`}><Building2 className="size-5" /><strong className="mt-3 block text-sm">Dépositaire</strong><span className="mt-1 block text-[11px] leading-4">Ventes, stocks et objectifs</span></button>
-                <button type="button" onClick={() => setRole('admin')} className={`rounded-2xl border p-4 text-left transition-colors ${role === 'admin' ? 'border-[#0a4ea8] bg-blue-50 text-[#082f70]' : 'bg-white text-slate-500'}`}><UserCog className="size-5" /><strong className="mt-3 block text-sm">Administrateur</strong><span className="mt-1 block text-[11px] leading-4">Pilotage global du réseau</span></button>
-              </div>
-
-              <form onSubmit={submitCredentials} className="mt-6 space-y-5">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Adresse e-mail</Label>
-                  <Input key={role} id="email" name="email" type="email" defaultValue={role === 'depositaire' ? 'depot@fanmilk.tg' : 'admin@fanmilk.tg'} required className="h-12 rounded-xl bg-white px-4" autoComplete="username" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password">Mot de passe</Label>
-                  <div className="relative">
-                    <Input id="password" name="password" type={showPassword ? 'text' : 'password'} defaultValue="FanMilk2026!" required className="h-12 rounded-xl bg-white px-4 pr-12" autoComplete="current-password" />
-                    <button type="button" onClick={() => setShowPassword((value) => !value)} className="absolute right-1 top-1 grid size-10 place-items-center rounded-lg text-muted-foreground hover:bg-muted" aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}>
-                      {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                    </button>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <label className="flex items-center gap-2 text-muted-foreground"><input type="checkbox" className="accent-emerald-700" /> Se souvenir de moi</label>
-                  <button type="button" className="font-semibold text-primary hover:underline">Mot de passe oublié ?</button>
-                </div>
-                <Button type="submit" size="lg" className="h-12 w-full rounded-xl text-base font-bold">Continuer comme {role === 'depositaire' ? 'Dépositaire' : 'Administrateur'} <ArrowRight data-icon="inline-end" /></Button>
-              </form>
-            </>
-          ) : (
-            <>
-              <button type="button" onClick={() => { setStep('credentials'); setError(''); }} className="mb-7 inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-primary"><ArrowLeft className="size-4" /> Modifier les identifiants</button>
-              <span className="mb-5 grid size-13 place-items-center rounded-2xl bg-primary/10 text-primary"><LockKeyhole className="size-6" /></span>
-              <p className="text-xs font-bold uppercase tracking-[.16em] text-primary">Étape 2 sur 2</p>
-              <h2 className="mt-3 text-3xl font-black tracking-[-.035em] text-emerald-950">Vérifiez votre identité</h2>
-              <p className="mt-3 text-sm leading-6 text-muted-foreground">Entrez le code à 6 chiffres envoyé à votre adresse professionnelle.</p>
-
-              <form onSubmit={submitOtp} className="mt-8">
-                <Label htmlFor="otp" className="mb-3">Code de sécurité</Label>
-                <InputOTP id="otp" maxLength={6} value={code} onChange={setCode} containerClassName="w-full" aria-label="Code de sécurité à six chiffres">
-                  <InputOTPGroup className="grid w-full grid-cols-6 gap-2">
-                    {[0, 1, 2, 3, 4, 5].map((index) => <InputOTPSlot key={index} index={index} className="size-12 rounded-xl border bg-white text-lg font-bold first:rounded-xl first:border last:rounded-xl" />)}
-                  </InputOTPGroup>
-                </InputOTP>
-                {error && <p role="alert" className="mt-3 text-sm font-medium text-red-600">{error}</p>}
-                <p className="mt-4 rounded-xl bg-yellow-50 p-3 text-xs leading-5 text-yellow-900">Mode démonstration : utilisez le code <strong>123456</strong>.</p>
-                <Button type="submit" size="lg" disabled={code.length !== 6} className="mt-6 h-12 w-full rounded-xl text-base font-bold">Vérifier et accéder</Button>
-              </form>
-            </>
-          )}
-        </div>
-      </section>
+      <section className="flex min-h-screen items-center justify-center px-5 py-10 sm:px-10"><div className="w-full max-w-md"><a href="/" className="mb-10 inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-[#0a4ea8]"><ArrowLeft className="size-4" />Retour à l’accueil</a><div className="mb-8 flex items-center gap-3 lg:hidden"><img src="/fan-site/logo-clean.png" alt="FanMilk" className="h-12 w-16 object-contain" /><span className="font-extrabold text-[#082f70]">FANMILK TOGO</span></div>
+        {!forgotten ? <><p className="text-xs font-black uppercase tracking-[.18em] text-[#0a4ea8]">Authentification commune</p><h2 className="mt-3 text-4xl font-black tracking-tight text-[#082f70]">Bienvenue</h2><p className="mt-3 text-sm leading-6 text-slate-500">Votre rôle et votre dépôt seront vérifiés côté serveur avant l’accès aux données.</p><div className="mt-7 grid grid-cols-2 gap-3"><button type="button" onClick={() => setRole('depositaire')} className={`rounded-2xl border p-4 text-left ${role === 'depositaire' ? 'border-[#0a4ea8] bg-blue-50 text-[#082f70]' : 'bg-white text-slate-500'}`}><Building2 className="size-5" /><strong className="mt-3 block text-sm">Dépositaire</strong><span className="mt-1 block text-[11px]">Validation de son dépôt</span></button><button type="button" onClick={() => setRole('admin')} className={`rounded-2xl border p-4 text-left ${role === 'admin' ? 'border-[#0a4ea8] bg-blue-50 text-[#082f70]' : 'bg-white text-slate-500'}`}><UserCog className="size-5" /><strong className="mt-3 block text-sm">Administrateur</strong><span className="mt-1 block text-[11px]">Pilotage national</span></button></div><form onSubmit={submitCredentials} className="mt-7 space-y-5"><div><Label htmlFor="email">Adresse électronique</Label><div className="relative mt-2"><Mail className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" /><Input id="email" type="email" required placeholder="nom@fanmilk.tg" className="h-12 pl-10" /></div></div><div><div className="flex items-center justify-between"><Label htmlFor="password">Mot de passe</Label><button type="button" onClick={() => setForgotten(true)} className="text-xs font-bold text-[#0a4ea8]">Mot de passe oublié ?</button></div><div className="relative mt-2"><LockKeyhole className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" /><Input id="password" type={showPassword ? 'text' : 'password'} required className="h-12 px-10" /><button type="button" onClick={() => setShowPassword((value) => !value)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">{showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}</button></div></div><Button type="submit" className="h-12 w-full rounded-xl bg-[#0a4ea8] text-base font-black hover:bg-[#082f70]">Se connecter <ArrowRight /></Button><p className="flex items-center justify-center gap-2 text-xs text-slate-400"><ShieldCheck className="size-4 text-emerald-600" />Jeton de session sécurisé · droits vérifiés côté serveur</p></form></> : <><p className="text-xs font-black uppercase tracking-[.18em] text-[#0a4ea8]">Récupération du compte</p><h2 className="mt-3 text-3xl font-black text-[#082f70]">Mot de passe oublié</h2><p className="mt-3 text-sm leading-6 text-slate-500">Saisissez l’adresse électronique liée à votre compte.</p><form onSubmit={submitReset} className="mt-7"><Label htmlFor="reset-email">Adresse électronique</Label><Input id="reset-email" type="email" required className="mt-2 h-12" />{message && <p className="mt-4 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700">{message}</p>}<Button type="submit" className="mt-5 h-12 w-full bg-[#0a4ea8]">Envoyer le lien</Button><Button type="button" variant="ghost" onClick={() => { setForgotten(false); setMessage(''); }} className="mt-2 w-full">Retour à la connexion</Button></form></>}</div></section>
     </main>
   );
 }
-
