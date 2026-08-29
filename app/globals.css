@@ -52,6 +52,29 @@ body {
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 
+@keyframes fan-drift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(18px, -24px, 0) scale(1.06); }
+}
+
+@keyframes fan-float-one {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(-4deg); }
+  50% { transform: translate3d(-12px, -24px, 0) rotate(2deg); }
+}
+
+@keyframes fan-float-two {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(3deg); }
+  50% { transform: translate3d(14px, -18px, 0) rotate(-3deg); }
+}
+
+.fan-blob { animation: fan-drift 14s ease-in-out infinite; }
+.fan-float-one { animation: fan-float-one 6s ease-in-out infinite; }
+.fan-float-two { animation: fan-float-two 7s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fan-blob, .fan-float-one, .fan-float-two { animation: none; }
+}
+
 :root {
   --background: oklch(0.985 0.008 240);
   --foreground: oklch(0.22 0.055 250);

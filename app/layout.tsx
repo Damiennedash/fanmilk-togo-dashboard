@@ -16,19 +16,19 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: 'FanMilk Dashboard — Pilotage commercial',
-  description: 'Suivez les ventes, stocks et performances des revendeurs FanMilk Togo en temps réel.',
+  title: 'FanMilk Togo — Délicieux, Onctueux',
+  description: 'Découvrez les produits FanMilk Togo et accédez au Dashboard de pilotage commercial.',
   openGraph: {
-    title: 'FanMilk Dashboard',
-    description: 'Chaque vente devient une décision claire.',
-    images: [{ url: '/og.png', width: 1536, height: 1024, alt: 'FanMilk Dashboard' }],
+    title: 'FanMilk Togo — Délicieux, Onctueux',
+    description: 'Produits FanMilk et pilotage commercial.',
+    images: [{ url: '/og.png', width: 1680, height: 941, alt: 'FanMilk Togo — Délicieux, Onctueux' }],
     locale: 'fr_FR',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'FanMilk Dashboard',
-    description: 'Chaque vente devient une décision claire.',
+    title: 'FanMilk Togo — Délicieux, Onctueux',
+    description: 'Produits FanMilk et pilotage commercial.',
     images: ['/og.png'],
   },
 };

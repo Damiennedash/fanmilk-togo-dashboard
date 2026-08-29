@@ -51,7 +51,7 @@ export default function DashboardPage() {
     <main className="min-h-screen bg-[#f3f7fb] text-foreground lg:grid lg:grid-cols-[248px_1fr]">
       <aside className="hidden min-h-screen flex-col bg-[#073b86] px-4 py-5 text-white lg:flex">
         <a href="/" className="flex items-center gap-3 px-2">
-          <span className="grid size-10 place-items-center rounded-[13px] bg-white font-black italic text-[#073b86]">FAN</span>
+          <img src="/fan-site/logo.png" alt="FanMilk" className="h-11 w-14 rounded-xl bg-white object-contain p-1" />
           <span><span className="block text-sm font-extrabold italic">FanMilk Togo</span><span className="text-[10px] uppercase tracking-[.16em] text-blue-100/60">Dashboard</span></span>
         </a>
         <nav className="mt-10 space-y-1" aria-label="Navigation du Dashboard">
@@ -69,7 +69,7 @@ export default function DashboardPage() {
 
       <section className="min-w-0">
         <header className="flex h-18 items-center justify-between border-b border-emerald-950/8 bg-white px-5 lg:px-8">
-          <div className="flex items-center gap-3 lg:hidden"><span className="grid size-9 place-items-center rounded-xl bg-primary font-black text-white">FM</span><span className="font-extrabold text-emerald-950">Dashboard</span></div>
+          <div className="flex items-center gap-3 lg:hidden"><img src="/fan-site/logo.png" alt="FanMilk" className="h-10 w-12 object-contain" /><span className="font-extrabold text-[#073b86]">Dashboard</span></div>
           <div className="relative hidden w-full max-w-sm md:block">
             <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input placeholder="Rechercher un revendeur, un dépôt…" className="h-10 rounded-xl bg-[#f6f8f5] pl-10" />
