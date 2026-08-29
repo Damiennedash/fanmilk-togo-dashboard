@@ -35,14 +35,22 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="bienfaits" className="bg-white px-5 py-28 lg:px-8">
-        <div className="mx-auto grid max-w-[1180px] items-center gap-12 lg:grid-cols-[.9fr_1.1fr]">
-          <div><p className="text-xs font-black uppercase tracking-[.22em] text-[#0a4ea8]">Pourquoi FanXtra</p><h2 className="mt-5 text-[clamp(2.4rem,4vw,3.5rem)] font-black leading-[1.08] tracking-tight text-[#082f70]">Un yaourt glacé pensé pour votre bien-être</h2><p className="mt-7 max-w-lg text-lg leading-9 text-slate-600">Chaque pack FanXtra est enrichi en vitamines et sels minéraux pour accompagner votre journée — sans jamais sacrifier le goût.</p></div>
-          <div className="relative mx-auto aspect-square w-full max-w-[560px]"><img src="/fan-site/fanxtra.png" alt="Yaourt glacé FanXtra" className="absolute inset-[8%] m-auto w-[84%] drop-shadow-[0_30px_36px_rgba(10,58,145,.2)]" />
-            <div className="fan-callout left-[-4%] top-[6%]"><i /><b /><strong>Vitamine B6</strong></div>
-            <div className="fan-callout fan-callout-reverse right-[-6%] top-[14%]"><strong>Phosphore</strong><b /><i /></div>
-            <div className="fan-callout bottom-[16%] left-[-8%]"><i /><b /><strong>Calcium</strong></div>
-            <div className="fan-callout fan-callout-reverse bottom-[4%] right-[-3%]"><strong>Iode</strong><b /><i /></div>
+      <section id="bienfaits" className="relative overflow-hidden bg-[radial-gradient(circle_at_72%_45%,#0e78db_0%,#0754ad_38%,#052f79_72%,#031d52_100%)] px-5 py-20 text-white lg:px-8 lg:py-24">
+        <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(circle_at_center,white_1px,transparent_1px)] [background-size:34px_34px]" />
+        <div className="relative mx-auto grid max-w-7xl items-center gap-6 lg:grid-cols-[.72fr_1.28fr]">
+          <div className="relative z-30 py-6 lg:py-14"><p className="text-xs font-black uppercase tracking-[.22em] text-yellow-300">Pourquoi FanXtra</p><h2 className="mt-5 text-[clamp(2.6rem,5vw,4.6rem)] font-black leading-[.98] tracking-tight">La fraîcheur<br /><span className="text-sky-200">en mouvement</span></h2><p className="mt-7 max-w-lg text-lg font-semibold leading-8 text-blue-100/85">Deux fois plus de plaisir, entouré d’un tourbillon de lait. FanXtra réunit fraîcheur, goût et nutriments essentiels dans un yaourt glacé unique.</p><div className="mt-8 flex flex-wrap gap-3 text-sm font-black"><span className="rounded-full border border-white/20 bg-white/10 px-4 py-2 backdrop-blur">Yaourt glacé</span><span className="rounded-full bg-yellow-300 px-4 py-2 text-[#082f70]">Enrichi en vitamines</span></div></div>
+          <div className="fan-xtra-stage relative mx-auto h-[520px] w-full max-w-[760px] sm:h-[640px]">
+            <div className="fan-orbit-glow absolute inset-[12%] rounded-full" />
+            <img src="/fan-site/milk-orbit.png" alt="" aria-hidden="true" className="fan-milk-orbit absolute inset-[7%] z-10 h-[86%] w-[86%] object-contain" />
+            <div className="fan-pack-wrap fan-pack-wrap-one"><img src="/fan-site/fanxtra.png" alt="FanXtra, yaourt glacé FanMilk" className="fan-xtra-pack fan-xtra-pack-one" /></div>
+            <div className="fan-pack-wrap fan-pack-wrap-two"><img src="/fan-site/fanxtra.png" alt="Deuxième sachet FanXtra" className="fan-xtra-pack fan-xtra-pack-two" /></div>
+            <img src="/fan-site/milk-orbit.png" alt="" aria-hidden="true" className="fan-milk-orbit fan-milk-front absolute inset-[7%] z-30 h-[86%] w-[86%] object-contain" />
+            <div className="fan-nutrient fan-nutrient-b2"><span>B<sub>2</sub></span></div>
+            <div className="fan-nutrient fan-nutrient-b6"><span>B<sub>6</sub></span></div>
+            <div className="fan-nutrient fan-nutrient-phosphore"><span>PHOSPHORE</span></div>
+            <div className="fan-nutrient fan-nutrient-iode"><span>IODE</span></div>
+            <div className="fan-nutrient fan-nutrient-calcium"><span>CALCIUM</span></div>
+            <i className="fan-droplet fan-droplet-one" /><i className="fan-droplet fan-droplet-two" /><i className="fan-droplet fan-droplet-three" />
           </div>
         </div>
       </section>

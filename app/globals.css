@@ -73,42 +73,64 @@ h1, h2, h3 { font-family: var(--font-baloo), var(--font-nunito), sans-serif; }
 .fan-float-one { animation: fan-float-one 6s ease-in-out infinite; }
 .fan-float-two { animation: fan-float-two 7s ease-in-out infinite; }
 
-.fan-callout {
-  position: absolute;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.55rem;
-  z-index: 5;
+@keyframes fan-milk-spin { to { transform: rotate(360deg); } }
+@keyframes fan-pack-spin-one {
+  0% { transform: translate3d(0, 0, 0) rotate(-18deg); }
+  25% { transform: translate3d(8px, -20px, 0) rotate(72deg); }
+  50% { transform: translate3d(0, -8px, 0) rotate(162deg); }
+  75% { transform: translate3d(-8px, -24px, 0) rotate(252deg); }
+  100% { transform: translate3d(0, 0, 0) rotate(342deg); }
+}
+@keyframes fan-pack-spin-two {
+  0% { transform: translate3d(0, 0, 0) rotate(14deg); }
+  25% { transform: translate3d(-10px, -22px, 0) rotate(-76deg); }
+  50% { transform: translate3d(0, -6px, 0) rotate(-166deg); }
+  75% { transform: translate3d(10px, -26px, 0) rotate(-256deg); }
+  100% { transform: translate3d(0, 0, 0) rotate(-346deg); }
+}
+@keyframes fan-nutrient-drift {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(-5deg) scale(1); }
+  35% { transform: translate3d(12px, -18px, 0) rotate(5deg) scale(1.06); }
+  70% { transform: translate3d(-8px, 8px, 0) rotate(-2deg) scale(.96); }
+}
+@keyframes fan-droplet-pop {
+  0%, 100% { transform: translateY(0) scale(.85); opacity: .5; }
+  50% { transform: translateY(-16px) scale(1.15); opacity: 1; }
 }
 
-.fan-callout i {
-  display: block;
-  width: 0.75rem;
-  height: 0.75rem;
-  border-radius: 999px;
-  background: #0a5bb5;
-  box-shadow: 0 0 0 5px rgba(10, 91, 181, 0.14);
-}
+.fan-xtra-stage { isolation: isolate; }
+.fan-orbit-glow { background: radial-gradient(circle, rgba(115,210,255,.38), rgba(0,71,170,.08) 58%, transparent 72%); filter: blur(12px); }
+.fan-milk-orbit { animation: fan-milk-spin 18s linear infinite; filter: drop-shadow(0 22px 26px rgba(1,25,74,.25)); transform-origin: center; }
+.fan-milk-front { clip-path: inset(50% 0 0 0); animation-direction: reverse; animation-duration: 24s; pointer-events: none; }
+.fan-pack-wrap { position: absolute; z-index: 20; display: grid; place-items: center; }
+.fan-pack-wrap-one { left: 24%; top: 19%; width: 29%; height: 62%; transform: rotate(-12deg); }
+.fan-pack-wrap-two { right: 20%; top: 17%; width: 29%; height: 62%; transform: rotate(10deg); }
+.fan-xtra-pack { width: 100%; max-height: 100%; object-fit: contain; filter: drop-shadow(0 28px 24px rgba(1,25,74,.42)); transform-origin: center; }
+.fan-xtra-pack-one { animation: fan-pack-spin-one 14s cubic-bezier(.45,.05,.55,.95) infinite; }
+.fan-xtra-pack-two { animation: fan-pack-spin-two 16s cubic-bezier(.45,.05,.55,.95) infinite; }
+.fan-nutrient { position: absolute; z-index: 40; display: grid; aspect-ratio: 1; place-items: center; border-radius: 999px; color: white; font-family: var(--font-baloo), sans-serif; font-weight: 900; letter-spacing: -.03em; background: radial-gradient(circle at 32% 25%, #8ff8ff 0, #17cae2 22%, #0877c7 57%, #063c93 100%); border: 1px solid rgba(255,255,255,.42); box-shadow: inset -10px -14px 18px rgba(0,34,109,.34), 0 18px 34px rgba(0,22,78,.34), 0 0 25px rgba(61,220,255,.28); animation: fan-nutrient-drift 5.8s ease-in-out infinite; }
+.fan-nutrient span { display: block; text-align: center; text-shadow: 0 2px 8px rgba(0,24,82,.4); }
+.fan-nutrient sub { font-size: .6em; }
+.fan-nutrient-b2 { left: 44%; top: 2%; width: 74px; font-size: 2rem; }
+.fan-nutrient-b6 { right: 7%; top: 9%; width: 68px; font-size: 1.7rem; animation-delay: -1.4s; }
+.fan-nutrient-phosphore { right: -1%; top: 42%; width: 112px; font-size: .9rem; animation-delay: -3s; }
+.fan-nutrient-iode { left: 1%; top: 40%; width: 98px; font-size: 1.35rem; animation-delay: -2.1s; }
+.fan-nutrient-calcium { bottom: 4%; right: 11%; width: 102px; font-size: 1rem; animation-delay: -4.2s; }
+.fan-droplet { position: absolute; z-index: 35; width: 18px; height: 28px; border-radius: 80% 20% 55% 45%; background: white; box-shadow: 0 8px 16px rgba(0,31,94,.22); animation: fan-droplet-pop 3.8s ease-in-out infinite; }
+.fan-droplet-one { left: 15%; top: 18%; transform: rotate(28deg); }
+.fan-droplet-two { right: 18%; top: 29%; animation-delay: -1.3s; }
+.fan-droplet-three { left: 16%; bottom: 18%; animation-delay: -2.4s; }
 
-.fan-callout b {
-  display: block;
-  width: 2.2rem;
-  height: 2px;
-  background: rgba(10, 91, 181, 0.42);
-}
-
-.fan-callout strong {
-  border-radius: 999px;
-  background: #0a4198;
-  padding: 0.65rem 1rem;
-  color: white;
-  font-size: 0.8rem;
-  font-weight: 900;
-  box-shadow: 0 18px 36px rgba(10, 58, 145, 0.18);
+@media (max-width: 639px) {
+  .fan-nutrient-b2 { width: 55px; font-size: 1.5rem; }
+  .fan-nutrient-b6 { right: 1%; width: 52px; font-size: 1.25rem; }
+  .fan-nutrient-phosphore { right: -6%; width: 84px; font-size: .66rem; }
+  .fan-nutrient-iode { left: -4%; width: 72px; font-size: 1rem; }
+  .fan-nutrient-calcium { right: 4%; width: 78px; font-size: .72rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fan-blob, .fan-float-one, .fan-float-two { animation: none; }
+  .fan-blob, .fan-float-one, .fan-float-two, .fan-milk-orbit, .fan-xtra-pack, .fan-nutrient, .fan-droplet { animation: none; }
 }
 
 :root {
