@@ -1,11 +1,16 @@
 import type { Metadata } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
+import { Baloo_2, Geist_Mono, Nunito } from 'next/font/google';
 import './globals.css';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://fanmilk-togo-dashboard.djatadamienne5.chatgpt.site';
 
-const geistSans = Geist({
-  variable: '--font-geist-sans',
+const nunito = Nunito({
+  variable: '--font-nunito',
+  subsets: ['latin'],
+});
+
+const baloo = Baloo_2({
+  variable: '--font-baloo',
   subsets: ['latin'],
 });
 
@@ -41,7 +46,7 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${nunito.variable} ${baloo.variable} ${geistMono.variable} antialiased`}
       >
         {children}
       </body>

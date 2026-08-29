@@ -35,7 +35,7 @@ export default function ConnexionPage() {
       <section className="relative hidden overflow-hidden bg-[#073b86] p-12 text-white lg:flex lg:flex-col lg:justify-between">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_75%_20%,rgba(250,204,21,.25),transparent_26%),radial-gradient(circle_at_15%_80%,rgba(56,189,248,.22),transparent_30%)]" />
         <a href="/" className="relative flex items-center gap-3">
-          <img src="/fan-site/logo.png" alt="FanMilk" className="h-14 w-18 rounded-xl bg-white object-contain p-1" />
+          <img src="/fan-site/logo-clean.png" alt="FanMilk" className="h-14 w-18 object-contain" />
           <span className="text-lg font-extrabold italic tracking-tight">FanMilk Togo</span>
         </a>
         <div className="relative max-w-lg">
@@ -52,7 +52,7 @@ export default function ConnexionPage() {
           <a href="/" className="mb-10 inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-primary"><ArrowLeft className="size-4" /> Retour à l’accueil</a>
 
           <div className="mb-8 flex items-center gap-3 lg:hidden">
-            <img src="/fan-site/logo.png" alt="FanMilk" className="h-12 w-16 object-contain" />
+            <img src="/fan-site/logo-clean.png" alt="FanMilk" className="h-12 w-16 object-contain" />
             <span className="font-extrabold text-emerald-950">FANMILK TOGO</span>
           </div>
 
@@ -114,3 +114,4 @@ export default function ConnexionPage() {
     </main>
   );
 }
+

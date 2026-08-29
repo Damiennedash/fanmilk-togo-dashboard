@@ -7,9 +7,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-nunito);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-heading: var(--font-baloo);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -49,8 +49,10 @@
 }
 
 body {
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-nunito), Arial, Helvetica, sans-serif;
 }
+
+h1, h2, h3 { font-family: var(--font-baloo), var(--font-nunito), sans-serif; }
 
 @keyframes fan-drift {
   0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
@@ -75,23 +77,34 @@ body {
   position: absolute;
   display: inline-flex;
   align-items: center;
-  gap: 0.7rem;
-  border-radius: 999px;
-  background: #0a4198;
-  padding: 0.7rem 1.25rem 0.7rem 0.8rem;
-  color: white;
-  font-size: 0.875rem;
-  font-weight: 900;
-  box-shadow: 0 18px 36px rgba(10, 58, 145, 0.2);
+  gap: 0.55rem;
+  z-index: 5;
 }
 
 .fan-callout i {
   display: block;
-  width: 0.8rem;
-  height: 0.8rem;
+  width: 0.75rem;
+  height: 0.75rem;
   border-radius: 999px;
-  background: #ef4136;
-  box-shadow: 0 0 0 6px rgba(239, 65, 54, 0.16);
+  background: #0a5bb5;
+  box-shadow: 0 0 0 5px rgba(10, 91, 181, 0.14);
+}
+
+.fan-callout b {
+  display: block;
+  width: 2.2rem;
+  height: 2px;
+  background: rgba(10, 91, 181, 0.42);
+}
+
+.fan-callout strong {
+  border-radius: 999px;
+  background: #0a4198;
+  padding: 0.65rem 1rem;
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 900;
+  box-shadow: 0 18px 36px rgba(10, 58, 145, 0.18);
 }
 
 @media (prefers-reduced-motion: reduce) {

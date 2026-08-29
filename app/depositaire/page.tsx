@@ -27,7 +27,7 @@ export default function DepositairePage() {
 
   return (
     <main className="min-h-screen bg-[#f3f7fb] text-[#122043]">
-      <header className="border-b border-blue-950/8 bg-white"><div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-5 lg:px-8"><a href="/" className="flex items-center gap-3"><img src="/fan-site/logo.png" alt="FanMilk" className="h-14 w-auto" /><span className="hidden text-sm font-black text-[#082f70] sm:block">Espace Dépositaire</span></a><div className="flex items-center gap-2"><Button variant="ghost" size="icon" className="relative"><Bell /><span className="absolute right-2 top-2 size-2 rounded-full bg-red-500" /></Button><a href="/" className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100"><LogOut className="size-4" />Déconnexion</a></div></div></header>
+      <header className="border-b border-blue-950/8 bg-white"><div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-5 lg:px-8"><a href="/" className="flex items-center gap-3"><img src="/fan-site/logo-clean.png" alt="FanMilk" className="h-14 w-auto" /><span className="hidden text-sm font-black text-[#082f70] sm:block">Espace Dépositaire</span></a><div className="flex items-center gap-2"><Button variant="ghost" size="icon" className="relative"><Bell /><span className="absolute right-2 top-2 size-2 rounded-full bg-red-500" /></Button><a href="/" className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100"><LogOut className="size-4" />Déconnexion</a></div></div></header>
 
       <div className="mx-auto max-w-7xl px-5 py-8 lg:px-8">
         {saved && <div className="mb-5 flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-700"><CheckCircle2 className="size-5" />La vente a été enregistrée et transmise à FanMilk.</div>}
@@ -50,3 +50,4 @@ export default function DepositairePage() {
     </main>
   );
 }
+
