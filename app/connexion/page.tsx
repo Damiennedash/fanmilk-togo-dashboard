@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useState } from 'react';
-import { ArrowLeft, ArrowRight, Eye, EyeOff, LockKeyhole, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Building2, Eye, EyeOff, LockKeyhole, ShieldCheck, UserCog } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 
 export default function ConnexionPage() {
   const [step, setStep] = useState<'credentials' | 'otp'>('credentials');
+  const [role, setRole] = useState<'admin' | 'depositaire'>('depositaire');
   const [showPassword, setShowPassword] = useState(false);
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
@@ -26,7 +27,7 @@ export default function ConnexionPage() {
       setError('Le code saisi est incorrect. Pour cette démonstration, utilisez 123456.');
       return;
     }
-    window.location.assign('/dashboard');
+    window.location.assign(role === 'depositaire' ? '/depositaire' : '/dashboard');
   }
 
   return (
@@ -59,12 +60,17 @@ export default function ConnexionPage() {
             <>
               <p className="text-xs font-bold uppercase tracking-[.16em] text-primary">Étape 1 sur 2</p>
               <h2 className="mt-3 text-3xl font-black tracking-[-.035em] text-emerald-950">Bienvenue sur votre espace</h2>
-              <p className="mt-3 text-sm leading-6 text-muted-foreground">Saisissez vos identifiants professionnels pour continuer.</p>
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">Choisissez votre profil puis saisissez vos identifiants professionnels.</p>
 
-              <form onSubmit={submitCredentials} className="mt-8 space-y-5">
+              <div className="mt-7 grid grid-cols-2 gap-3" aria-label="Type de compte">
+                <button type="button" onClick={() => setRole('depositaire')} className={`rounded-2xl border p-4 text-left transition-colors ${role === 'depositaire' ? 'border-[#0a4ea8] bg-blue-50 text-[#082f70]' : 'bg-white text-slate-500'}`}><Building2 className="size-5" /><strong className="mt-3 block text-sm">Dépositaire</strong><span className="mt-1 block text-[11px] leading-4">Ventes, stocks et objectifs</span></button>
+                <button type="button" onClick={() => setRole('admin')} className={`rounded-2xl border p-4 text-left transition-colors ${role === 'admin' ? 'border-[#0a4ea8] bg-blue-50 text-[#082f70]' : 'bg-white text-slate-500'}`}><UserCog className="size-5" /><strong className="mt-3 block text-sm">Administrateur</strong><span className="mt-1 block text-[11px] leading-4">Pilotage global du réseau</span></button>
+              </div>
+
+              <form onSubmit={submitCredentials} className="mt-6 space-y-5">
                 <div className="space-y-2">
                   <Label htmlFor="email">Adresse e-mail</Label>
-                  <Input id="email" name="email" type="email" defaultValue="admin@fanmilk.tg" required className="h-12 rounded-xl bg-white px-4" autoComplete="username" />
+                  <Input key={role} id="email" name="email" type="email" defaultValue={role === 'depositaire' ? 'depot@fanmilk.tg' : 'admin@fanmilk.tg'} required className="h-12 rounded-xl bg-white px-4" autoComplete="username" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="password">Mot de passe</Label>
@@ -79,7 +85,7 @@ export default function ConnexionPage() {
                   <label className="flex items-center gap-2 text-muted-foreground"><input type="checkbox" className="accent-emerald-700" /> Se souvenir de moi</label>
                   <button type="button" className="font-semibold text-primary hover:underline">Mot de passe oublié ?</button>
                 </div>
-                <Button type="submit" size="lg" className="h-12 w-full rounded-xl text-base font-bold">Continuer <ArrowRight data-icon="inline-end" /></Button>
+                <Button type="submit" size="lg" className="h-12 w-full rounded-xl text-base font-bold">Continuer comme {role === 'depositaire' ? 'Dépositaire' : 'Administrateur'} <ArrowRight data-icon="inline-end" /></Button>
               </form>
             </>
           ) : (
