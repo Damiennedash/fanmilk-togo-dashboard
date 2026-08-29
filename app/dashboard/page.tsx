@@ -39,17 +39,24 @@ const declarations = [
 
 const bars = [48, 65, 54, 88, 70, 95, 82, 106, 91, 124, 108, 138, 126, 151];
 
+const productSales = [
+  { name: 'FanXtra', category: 'Yaourt glacé', sold: 82, share: '28,7 %', image: '/products/fan-xtra.png', tone: 'bg-sky-50' },
+  { name: 'FanYogo', category: 'Yaourt fraise', sold: 71, share: '24,8 %', image: '/products/fan-yogo.png', tone: 'bg-pink-50' },
+  { name: 'FanVanille', category: 'Boisson lactée', sold: 59, share: '20,6 %', image: '/products/fan-vanille.png', tone: 'bg-amber-50' },
+  { name: 'Yaourts', category: 'Nature & vanille', sold: 48, share: '16,8 %', image: '/products/yaourt-nature.png', tone: 'bg-blue-50' },
+];
+
 export default function DashboardPage() {
   return (
-    <main className="min-h-screen bg-[#f3f7f2] text-foreground lg:grid lg:grid-cols-[248px_1fr]">
-      <aside className="hidden min-h-screen flex-col bg-emerald-950 px-4 py-5 text-white lg:flex">
+    <main className="min-h-screen bg-[#f3f7fb] text-foreground lg:grid lg:grid-cols-[248px_1fr]">
+      <aside className="hidden min-h-screen flex-col bg-[#073b86] px-4 py-5 text-white lg:flex">
         <a href="/" className="flex items-center gap-3 px-2">
-          <span className="grid size-10 place-items-center rounded-[13px] bg-yellow-300 font-black tracking-[-.08em] text-emerald-950">FM</span>
-          <span><span className="block text-sm font-extrabold">FANMILK TOGO</span><span className="text-[10px] uppercase tracking-[.16em] text-emerald-100/50">Dashboard</span></span>
+          <span className="grid size-10 place-items-center rounded-[13px] bg-white font-black italic text-[#073b86]">FAN</span>
+          <span><span className="block text-sm font-extrabold italic">FanMilk Togo</span><span className="text-[10px] uppercase tracking-[.16em] text-blue-100/60">Dashboard</span></span>
         </a>
         <nav className="mt-10 space-y-1" aria-label="Navigation du Dashboard">
           {nav.map(({ label, icon: Icon, active }) => (
-            <a key={label} href="#" className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${active ? 'bg-white text-emerald-950' : 'text-emerald-100/65 hover:bg-white/8 hover:text-white'}`}>
+            <a key={label} href="#" className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${active ? 'bg-white text-[#073b86]' : 'text-blue-100/70 hover:bg-white/8 hover:text-white'}`}>
               <Icon className="size-4" /> {label}
             </a>
           ))}
@@ -103,12 +110,12 @@ export default function DashboardPage() {
               <CardHeader><CardTitle>Évolution des ventes</CardTitle><CardDescription>Montants déclarés sur les 14 derniers jours</CardDescription></CardHeader>
               <CardContent>
                 <div className="flex h-56 items-end gap-2 border-b border-l border-emerald-950/10 pl-3">
-                  {bars.map((height, index) => <span key={index} title={`${height * 4000} FCFA`} className="flex-1 rounded-t-md bg-gradient-to-t from-emerald-800 to-emerald-500" style={{ height }} />)}
+              {bars.map((height, index) => <span key={index} title={`${height * 4000} FCFA`} className="flex-1 rounded-t-md bg-gradient-to-t from-[#073b86] to-sky-400" style={{ height }} />)}
                 </div>
                 <div className="mt-3 flex justify-between text-[10px] font-semibold text-muted-foreground"><span>16 AOÛT</span><span>22 AOÛT</span><span>29 AOÛT</span></div>
               </CardContent>
             </Card>
-            <Card className="border-0 bg-emerald-950 text-white ring-0">
+            <Card className="border-0 bg-[#073b86] text-white ring-0">
               <CardHeader><CardTitle className="text-white">Objectif mensuel</CardTitle><CardDescription className="text-emerald-100/60">Août 2026</CardDescription></CardHeader>
               <CardContent>
                 <p className="text-4xl font-black">78<span className="text-xl text-yellow-300">%</span></p>
@@ -118,6 +125,11 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
           </div>
+
+          <Card className="mt-5 border-0 bg-white ring-blue-950/7">
+            <CardHeader className="flex-row items-end justify-between"><div><CardTitle>Ventes par produit</CardTitle><CardDescription>Les références FanMilk les plus vendues aujourd’hui</CardDescription></div><Badge className="bg-blue-50 text-[#0757b9]">260 unités suivies</Badge></CardHeader>
+            <CardContent><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{productSales.map((product) => <div key={product.name} className={`flex items-center gap-4 rounded-2xl ${product.tone} p-4`}><span className="grid size-20 shrink-0 place-items-center rounded-2xl bg-white shadow-sm"><img src={product.image} alt={product.name} className="max-h-16 max-w-18 object-contain" /></span><div><p className="font-black text-[#073b86]">{product.name}</p><p className="text-xs text-slate-500">{product.category}</p><p className="mt-2 text-xl font-black">{product.sold} <span className="text-[10px] font-bold text-slate-500">unités</span></p><p className="text-xs font-bold text-emerald-600">{product.share} des ventes</p></div></div>)}</div></CardContent>
+          </Card>
 
           <Card className="mt-5 border-0 bg-white ring-emerald-950/7">
             <CardHeader className="flex-row items-center justify-between"><div><CardTitle>Dernières déclarations</CardTitle><CardDescription>Mises à jour reçues depuis WhatsApp</CardDescription></div><Button variant="outline" size="sm">Voir toutes</Button></CardHeader>

@@ -1,169 +1,49 @@
-import {
-  ArrowRight,
-  BadgeCheck,
-  Bot,
-  CircleCheck,
-  PackageCheck,
-  ShieldCheck,
-  ShoppingBag,
-  Store,
-  TrendingUp,
-} from 'lucide-react';
-
+import { ArrowRight, Bot, ChartNoAxesCombined, ShieldCheck, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { buttonVariants } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
-const metrics = [
-  { label: 'Ventes déclarées', value: '2,48 M', unit: 'FCFA', icon: TrendingUp, change: '+12,4 %' },
-  { label: 'Produits vendus', value: '1 286', unit: 'unités', icon: ShoppingBag, change: '+8,1 %' },
-  { label: 'Revendeurs actifs', value: '84', unit: 'ce mois', icon: Store, change: '92 %' },
+const products = [
+  { name: 'FanXtra', type: 'Yaourt glacé', image: '/products/fan-xtra.png', color: 'from-sky-100 to-blue-50' },
+  { name: 'FanYogo', type: 'Yaourt fraise', image: '/products/fan-yogo.png', color: 'from-pink-100 to-rose-50' },
+  { name: 'FanChoco', type: 'Glace chocolat', image: '/products/fan-choco.jpg', color: 'from-amber-100 to-orange-50' },
+  { name: 'FanVanille', type: 'Boisson lactée', image: '/products/fan-vanille.png', color: 'from-yellow-100 to-amber-50' },
 ];
-
-const bars = [42, 58, 51, 74, 66, 87, 78, 94, 83, 101, 96, 118];
 
 export default function Home() {
   return (
-    <main className="min-h-screen overflow-hidden bg-background text-foreground">
-      <header className="sticky top-0 z-50 border-b border-emerald-950/8 bg-background/88 backdrop-blur-xl">
-        <div className="mx-auto flex h-18 max-w-7xl items-center justify-between px-5 lg:px-8">
-          <a href="/" className="flex items-center gap-3" aria-label="FanMilk Dashboard — accueil">
-            <span className="grid size-10 place-items-center rounded-[14px] bg-primary text-primary-foreground shadow-[0_8px_20px_rgba(0,104,71,.2)]">
-              <span className="text-lg font-black tracking-[-.08em]">FM</span>
-            </span>
-            <span>
-              <span className="block text-[15px] font-extrabold leading-none tracking-tight">FANMILK TOGO</span>
-              <span className="mt-1 block text-[10px] font-semibold uppercase tracking-[.19em] text-muted-foreground">Sales intelligence</span>
-            </span>
+    <main className="min-h-screen overflow-hidden bg-white text-slate-950">
+      <header className="sticky top-0 z-50 border-b border-blue-950/8 bg-white/92 backdrop-blur-xl">
+        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-5 lg:px-8">
+          <a href="/" className="flex items-center gap-3" aria-label="FanMilk Togo — accueil">
+            <span className="grid size-11 place-items-center rounded-2xl bg-[#073b86] text-sm font-black italic text-white shadow-lg shadow-blue-900/20">FAN</span>
+            <span><strong className="block text-lg font-black italic leading-none text-[#073b86]">FanMilk</strong><span className="mt-1 block text-[10px] font-bold uppercase tracking-[.2em] text-slate-500">Togo</span></span>
           </a>
-
-          <nav className="hidden items-center gap-8 text-sm font-medium text-muted-foreground md:flex" aria-label="Navigation principale">
-            <a href="#fonctionnement" className="transition-colors hover:text-primary">Fonctionnement</a>
-            <a href="#apercu" className="transition-colors hover:text-primary">Aperçu</a>
-            <a href="#securite" className="transition-colors hover:text-primary">Sécurité</a>
+          <nav className="hidden items-center gap-8 text-sm font-bold text-slate-600 md:flex" aria-label="Navigation principale">
+            <a href="#produits" className="hover:text-[#0757b9]">Nos produits</a><a href="#pilotage" className="hover:text-[#0757b9]">Pilotage</a><a href="#yaourts" className="hover:text-[#0757b9]">Nos yaourts</a>
           </nav>
-
-          <a href="/connexion" className={cn(buttonVariants({ size: 'lg' }), 'h-10 rounded-xl px-5 font-bold shadow-sm')}>
-            Se connecter <ArrowRight data-icon="inline-end" />
-          </a>
+          <a href="/connexion" className={cn(buttonVariants({ size: 'lg' }), 'h-11 rounded-full bg-[#0757b9] px-6 font-bold hover:bg-[#063f87]')}>Dashboard <ArrowRight data-icon="inline-end" /></a>
         </div>
       </header>
 
-      <section className="relative border-b border-emerald-950/8 px-5 pb-18 pt-16 lg:px-8 lg:pb-24 lg:pt-22">
-        <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_78%_18%,rgba(255,205,28,.24),transparent_24%),radial-gradient(circle_at_8%_76%,rgba(0,125,83,.1),transparent_28%)]" />
-        <div className="mx-auto grid max-w-7xl items-center gap-14 lg:grid-cols-[.88fr_1.12fr]">
-          <div className="max-w-xl">
-            <Badge variant="secondary" className="mb-6 h-7 border border-primary/10 bg-primary/8 px-3 text-primary">
-              <CircleCheck /> Pilotage commercial en temps réel
-            </Badge>
-            <h1 className="text-balance text-[clamp(2.6rem,5vw,4.9rem)] font-black leading-[.94] tracking-[-.055em] text-emerald-950">
-              Chaque vente devient une décision claire.
-            </h1>
-            <p className="mt-7 max-w-lg text-pretty text-lg leading-8 text-muted-foreground">
-              Centralisez les déclarations WhatsApp, suivez les performances des revendeurs et anticipez les besoins de stock depuis un seul espace FanMilk.
-            </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <a href="/connexion" className={cn(buttonVariants({ size: 'lg' }), 'h-12 rounded-xl px-6 text-base font-bold shadow-[0_12px_28px_rgba(0,104,71,.18)]')}>
-                Accéder au Dashboard <ArrowRight data-icon="inline-end" />
-              </a>
-              <a href="#fonctionnement" className={cn(buttonVariants({ variant: 'outline', size: 'lg' }), 'h-12 rounded-xl border-primary/15 bg-white/70 px-6 text-base font-semibold')}>
-                Découvrir le flux
-              </a>
-            </div>
-            <div className="mt-9 flex flex-wrap gap-x-6 gap-y-3 text-sm text-emerald-950/70">
-              <span className="flex items-center gap-2"><BadgeCheck className="size-4 text-primary" /> Données centralisées</span>
-              <span className="flex items-center gap-2"><ShieldCheck className="size-4 text-primary" /> Double authentification</span>
-            </div>
+      <section className="relative bg-[linear-gradient(120deg,#eaf7ff_0%,#ffffff_43%,#fff3c7_100%)] px-5 py-14 lg:px-8 lg:py-20">
+        <div className="absolute -left-24 top-10 size-80 rounded-full bg-sky-300/25 blur-3xl" />
+        <div className="mx-auto grid max-w-7xl items-center gap-10 lg:grid-cols-[.82fr_1.18fr]">
+          <div className="relative z-10">
+            <Badge className="mb-6 rounded-full bg-[#e40d2f] px-4 py-1.5 text-white"><Sparkles /> Les saveurs que le Togo aime</Badge>
+            <h1 className="max-w-xl text-[clamp(3.2rem,6vw,6rem)] font-black leading-[.86] tracking-[-.065em] text-[#073b86]">Le plaisir<br /><span className="text-[#e40d2f]">FanMilk</span>, piloté en temps réel.</h1>
+            <p className="mt-7 max-w-lg text-lg font-medium leading-8 text-slate-600">Glaces, yaourts et boissons lactées : suivez chaque vente de vos produits FanMilk depuis un espace unique.</p>
+            <div className="mt-8 flex flex-wrap gap-3"><a href="/connexion" className={cn(buttonVariants({ size: 'lg' }), 'h-13 rounded-full bg-[#0757b9] px-7 text-base font-black shadow-xl shadow-blue-900/20 hover:bg-[#063f87]')}>Accéder au Dashboard <ArrowRight /></a><a href="#produits" className={cn(buttonVariants({ variant: 'outline', size: 'lg' }), 'h-13 rounded-full border-[#0757b9]/20 bg-white px-7 text-base font-bold text-[#0757b9]')}>Voir les produits</a></div>
           </div>
-
-          <div id="apercu" className="relative">
-            <div className="absolute -inset-5 -z-10 rounded-[40px] bg-gradient-to-br from-primary/14 via-transparent to-yellow-300/25 blur-2xl" />
-            <div className="overflow-hidden rounded-[28px] border border-emerald-950/10 bg-[#f9fbf8] p-3 shadow-[0_34px_90px_rgba(2,67,49,.16)] sm:p-4">
-              <div className="rounded-[20px] border border-emerald-950/8 bg-white">
-                <div className="flex items-center justify-between border-b border-emerald-950/8 px-5 py-4">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[.12em] text-muted-foreground">Vue générale</p>
-                    <p className="mt-1 font-bold text-emerald-950">Activité commerciale</p>
-                  </div>
-                  <Badge className="bg-emerald-50 text-emerald-700"><span className="size-1.5 rounded-full bg-emerald-500" /> Données synchronisées</Badge>
-                </div>
-                <div className="grid gap-3 p-4 sm:grid-cols-3">
-                  {metrics.map(({ label, value, unit, icon: Icon, change }) => (
-                    <Card key={label} size="sm" className="border-0 bg-[#f7faf6] ring-0">
-                      <CardHeader className="pb-1">
-                        <div className="flex items-center justify-between">
-                          <span className="grid size-8 place-items-center rounded-lg bg-white text-primary shadow-sm"><Icon className="size-4" /></span>
-                          <span className="text-[10px] font-bold text-emerald-700">{change}</span>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-[11px] font-semibold text-muted-foreground">{label}</p>
-                        <p className="mt-1 text-xl font-black tracking-tight text-emerald-950">{value} <span className="text-[10px] font-semibold text-muted-foreground">{unit}</span></p>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-                <div className="grid gap-4 px-4 pb-4 md:grid-cols-[1.5fr_.8fr]">
-                  <Card className="border-0 ring-emerald-950/8">
-                    <CardHeader>
-                      <CardTitle>Progression des ventes</CardTitle>
-                      <CardDescription>Déclarations consolidées — 12 derniers jours</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex h-36 items-end gap-2 border-b border-emerald-950/10">
-                        {bars.map((height, index) => (
-                          <span key={index} className="flex-1 rounded-t-md bg-primary/85 transition-colors hover:bg-primary" style={{ height }} />
-                        ))}
-                      </div>
-                    </CardContent>
-                  </Card>
-                  <Card className="border-0 bg-emerald-950 text-white ring-0">
-                    <CardHeader>
-                      <CardTitle className="text-white">Objectif du mois</CardTitle>
-                      <CardDescription className="text-emerald-100/70">Le réseau progresse bien</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <p className="text-4xl font-black tracking-tight">78<span className="text-lg text-yellow-300">%</span></p>
-                      <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/12"><div className="h-full w-[78%] rounded-full bg-yellow-300" /></div>
-                      <p className="mt-4 text-xs leading-5 text-emerald-100/70">Plus que 22 % pour dépasser l’objectif national.</p>
-                    </CardContent>
-                  </Card>
-                </div>
-              </div>
-            </div>
-          </div>
+          <div className="relative min-h-[430px] lg:min-h-[560px]"><div className="absolute inset-8 rounded-full bg-white/70 shadow-[0_40px_100px_rgba(6,63,135,.14)]" /><img src="/products/fan-assortiment.png" alt="Assortiment FanMilk : FanXtra, FanYogo, FanChoco et FanVanille" className="relative z-10 mx-auto h-[430px] w-full object-contain drop-shadow-[0_25px_25px_rgba(17,54,93,.2)] lg:h-[560px]" /><div className="absolute bottom-5 right-2 z-20 rounded-2xl border border-white bg-white/90 p-4 shadow-xl backdrop-blur sm:right-10"><p className="text-xs font-bold uppercase tracking-wider text-slate-500">Ventes aujourd’hui</p><p className="mt-1 text-2xl font-black text-[#073b86]">286 produits <span className="text-sm text-emerald-600">+8,6 %</span></p></div></div>
         </div>
       </section>
 
-      <section id="fonctionnement" className="bg-emerald-950 px-5 py-14 text-white lg:px-8">
-        <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[.7fr_1.3fr] lg:items-center">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[.18em] text-yellow-300">Un flux maîtrisé</p>
-            <h2 className="mt-3 text-3xl font-black tracking-tight">Du terrain à la direction, sans ressaisie.</h2>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-3">
-            {[
-              { icon: Bot, title: 'Vendor Bot', text: 'Collecte guidée via WhatsApp' },
-              { icon: PackageCheck, title: 'MySQL sécurisé', text: 'Centralisation et historique' },
-              { icon: TrendingUp, title: 'Dashboard', text: 'Décisions et rapports instantanés' },
-            ].map(({ icon: Icon, title, text }, index) => (
-              <div key={title} className="relative rounded-2xl border border-white/10 bg-white/6 p-5">
-                <span className="mb-5 grid size-10 place-items-center rounded-xl bg-yellow-300 text-emerald-950"><Icon className="size-5" /></span>
-                <p className="font-bold">{index + 1}. {title}</p>
-                <p className="mt-1 text-sm leading-6 text-emerald-100/65">{text}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <section id="produits" className="px-5 py-20 lg:px-8"><div className="mx-auto max-w-7xl"><div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-xs font-black uppercase tracking-[.22em] text-[#e40d2f]">La famille FanMilk</p><h2 className="mt-3 text-4xl font-black tracking-tight text-[#073b86]">Nos produits stars</h2></div><p className="max-w-md text-sm leading-6 text-slate-500">Une vision claire des performances de chaque référence, du dépôt jusqu’au point de vente.</p></div><div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">{products.map((product) => <article key={product.name} className={`group overflow-hidden rounded-[28px] bg-gradient-to-br ${product.color} p-5 ring-1 ring-blue-950/6 transition-transform hover:-translate-y-1`}><div className="grid h-52 place-items-center"><img src={product.image} alt={product.name} className="max-h-44 w-full object-contain drop-shadow-xl transition-transform group-hover:scale-105" /></div><p className="mt-3 text-2xl font-black italic text-[#073b86]">{product.name}</p><p className="mt-1 text-sm font-semibold text-slate-500">{product.type}</p></article>)}</div></div></section>
 
-      <footer id="securite" className="border-t border-emerald-950/8 bg-white px-5 py-7 lg:px-8">
-        <div className="mx-auto flex max-w-7xl flex-col gap-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-          <p>© 2026 FanMilk Togo — Pilotage commercial.</p>
-          <p className="flex items-center gap-2"><ShieldCheck className="size-4 text-primary" /> Accès protégé par authentification à double facteur</p>
-        </div>
-      </footer>
+      <section id="pilotage" className="bg-[#073b86] px-5 py-16 text-white lg:px-8"><div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[.8fr_1.2fr] lg:items-center"><div><p className="text-xs font-black uppercase tracking-[.2em] text-yellow-300">Du terrain au Dashboard</p><h2 className="mt-4 text-4xl font-black tracking-tight">Chaque vente compte. Chaque produit aussi.</h2></div><div className="grid gap-4 sm:grid-cols-3">{[{ icon: Bot, title: 'Vendor Bot', text: 'Déclarations guidées via WhatsApp' }, { icon: ChartNoAxesCombined, title: 'Analyse produit', text: 'FanXtra, FanYogo, glaces et yaourts' }, { icon: ShieldCheck, title: 'Données sécurisées', text: 'Historique centralisé dans MySQL' }].map(({ icon: Icon, title, text }) => <div key={title} className="rounded-3xl border border-white/15 bg-white/8 p-6"><span className="grid size-11 place-items-center rounded-2xl bg-yellow-300 text-[#073b86]"><Icon /></span><h3 className="mt-5 font-black">{title}</h3><p className="mt-2 text-sm leading-6 text-blue-100/70">{text}</p></div>)}</div></div></section>
+      <section id="yaourts" className="px-5 py-20 lg:px-8"><div className="mx-auto max-w-7xl overflow-hidden rounded-[34px] bg-[#eaf7ff] shadow-xl shadow-blue-950/10"><img src="/products/yaourt-banner.jpg" alt="Yaourts FanMilk nature et vanille" className="h-auto w-full object-cover" /></div></section>
+      <footer className="border-t border-blue-950/8 px-5 py-7 lg:px-8"><div className="mx-auto flex max-w-7xl flex-col gap-2 text-sm text-slate-500 sm:flex-row sm:justify-between"><p>© 2026 FanMilk Togo</p><p>Glaces · Yaourts · Boissons lactées · Pilotage commercial</p></div></footer>
     </main>
   );
 }

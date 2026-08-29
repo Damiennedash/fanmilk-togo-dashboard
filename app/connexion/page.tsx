@@ -30,19 +30,20 @@ export default function ConnexionPage() {
   }
 
   return (
-    <main className="grid min-h-screen bg-[#f4f8f3] lg:grid-cols-[1.05fr_.95fr]">
-      <section className="relative hidden overflow-hidden bg-emerald-950 p-12 text-white lg:flex lg:flex-col lg:justify-between">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_75%_20%,rgba(250,204,21,.2),transparent_26%),radial-gradient(circle_at_15%_80%,rgba(16,185,129,.16),transparent_30%)]" />
+    <main className="grid min-h-screen bg-[#f4f8fc] lg:grid-cols-[1.05fr_.95fr]">
+      <section className="relative hidden overflow-hidden bg-[#073b86] p-12 text-white lg:flex lg:flex-col lg:justify-between">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_75%_20%,rgba(250,204,21,.25),transparent_26%),radial-gradient(circle_at_15%_80%,rgba(56,189,248,.22),transparent_30%)]" />
         <a href="/" className="relative flex items-center gap-3">
-          <span className="grid size-11 place-items-center rounded-[14px] bg-yellow-300 text-lg font-black tracking-[-.08em] text-emerald-950">FM</span>
-          <span className="text-lg font-extrabold tracking-tight">FANMILK TOGO</span>
+          <span className="grid size-11 place-items-center rounded-[14px] bg-white text-sm font-black italic text-[#073b86]">FAN</span>
+          <span className="text-lg font-extrabold italic tracking-tight">FanMilk Togo</span>
         </a>
         <div className="relative max-w-lg">
-          <p className="text-xs font-bold uppercase tracking-[.2em] text-yellow-300">Espace sécurisé</p>
-          <h1 className="mt-5 text-5xl font-black leading-[1.02] tracking-[-.045em]">Vos données commerciales, protégées à chaque connexion.</h1>
-          <p className="mt-6 max-w-md text-lg leading-8 text-emerald-100/65">L’authentification à double facteur renforce la protection des ventes, des stocks et des informations revendeurs.</p>
+          <img src="/products/fan-assortiment.png" alt="Produits FanMilk" className="mb-4 h-64 w-full object-contain drop-shadow-2xl" />
+          <p className="text-xs font-bold uppercase tracking-[.2em] text-yellow-300">Espace commercial sécurisé</p>
+          <h1 className="mt-4 text-4xl font-black leading-[1.02] tracking-[-.045em]">Pilotez toutes les saveurs FanMilk.</h1>
+          <p className="mt-5 max-w-md text-base leading-7 text-blue-100/70">Retrouvez les ventes de FanXtra, FanYogo, FanChoco, FanVanille et de nos yaourts.</p>
         </div>
-        <div className="relative flex items-center gap-3 text-sm text-emerald-100/70"><ShieldCheck className="size-5 text-yellow-300" /> Connexion chiffrée · Session sécurisée · Journal d’accès</div>
+        <div className="relative flex items-center gap-3 text-sm text-blue-100/70"><ShieldCheck className="size-5 text-yellow-300" /> Connexion chiffrée · Session sécurisée · Journal d’accès</div>
       </section>
 
       <section className="flex min-h-screen items-center justify-center px-5 py-10 sm:px-10">
