@@ -68,7 +68,37 @@ type Performance = {
 const initialAccounts: Account[] = [];
 const initialIssues: Issue[] = [];
 
-export default function DashboardPage() {
+export type AdminView =
+  | 'pilotage'
+  | 'comptes'
+  | 'performances'
+  | 'difficultes'
+  | 'donnees';
+
+const adminViewMeta: Record<AdminView, { title: string; description: string }> = {
+  pilotage: {
+    title: 'Pilotage du réseau',
+    description: 'Les indicateurs nationaux consolidés par Vendor‑Bot.',
+  },
+  comptes: {
+    title: 'Gestion des utilisateurs',
+    description: 'Créez les comptes et gérez leur accès au réseau FanMilk.',
+  },
+  performances: {
+    title: 'Performances et primes',
+    description: 'Analysez les résultats et attribuez les primes.',
+  },
+  difficultes: {
+    title: 'Difficultés PRIME',
+    description: 'Suivez et traitez les difficultés remontées par le terrain.',
+  },
+  donnees: {
+    title: 'Ventes et stocks',
+    description: 'Consultez les déclarations de tous les dépôts.',
+  },
+};
+
+export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
   const [accounts, setAccounts] = useState(initialAccounts);
   const [issues, setIssues] = useState(initialIssues);
   const [showAccountForm, setShowAccountForm] = useState(false);
@@ -268,27 +298,40 @@ export default function DashboardPage() {
         <nav className="mt-10 space-y-1 text-sm font-bold">
           {[
             {
-              href: '#indicateurs',
+              href: '/dashboard',
+              view: 'pilotage',
               label: 'Pilotage national',
               icon: BarChart3,
             },
-            { href: '#comptes', label: 'Comptes utilisateurs', icon: Users },
             {
-              href: '#performances',
+              href: '/dashboard/comptes',
+              view: 'comptes',
+              label: 'Comptes utilisateurs',
+              icon: Users,
+            },
+            {
+              href: '/dashboard/performances',
+              view: 'performances',
               label: 'Performances & primes',
               icon: Award,
             },
             {
-              href: '#difficultes',
+              href: '/dashboard/difficultes',
+              view: 'difficultes',
               label: 'Difficultés PRIME',
               icon: AlertTriangle,
             },
-            { href: '#donnees', label: 'Ventes & stocks', icon: Database },
-          ].map(({ href, label, icon: Icon }, index) => (
+            {
+              href: '/dashboard/donnees',
+              view: 'donnees',
+              label: 'Ventes & stocks',
+              icon: Database,
+            },
+          ].map(({ href, view: itemView, label, icon: Icon }) => (
             <a
               key={label}
               href={href}
-              className={`flex items-center gap-3 rounded-xl px-3 py-3 ${index === 0 ? 'bg-white text-[#073b86]' : 'text-blue-100/70 hover:bg-white/10 hover:text-white'}`}
+              className={`flex items-center gap-3 rounded-xl px-3 py-3 ${view === itemView ? 'bg-white text-[#073b86]' : 'text-blue-100/70 hover:bg-white/10 hover:text-white'}`}
             >
               <Icon className="size-4" />
               {label}
@@ -326,9 +369,6 @@ export default function DashboardPage() {
             </span>
           </div>
           <div className="flex items-center gap-3">
-            <Badge className="hidden bg-blue-50 text-[#0a4ea8] sm:flex">
-              Source prévue · PostgreSQL Render
-            </Badge>
             <Button variant="ghost" size="icon">
               <Bell />
             </Button>
@@ -362,10 +402,10 @@ export default function DashboardPage() {
                 Samedi 29 août 2026
               </p>
               <h1 className="mt-1 text-4xl font-black text-[#082f70]">
-                Pilotage du réseau
+                {adminViewMeta[view].title}
               </h1>
               <p className="mt-2 text-slate-500">
-                Toutes les données consolidées par Vendor‑Bot.
+                {adminViewMeta[view].description}
               </p>
             </div>
             <div className="flex gap-3">
@@ -381,10 +421,8 @@ export default function DashboardPage() {
               </select>
             </div>
           </div>
-          <div
-            id="indicateurs"
-            className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
-          >
+          {view === 'pilotage' && (
+            <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {[
               {
                 label: 'Revendeurs actifs',
@@ -434,9 +472,11 @@ export default function DashboardPage() {
                 </CardContent>
               </Card>
             ))}
-          </div>
+            </div>
+          )}
 
-          <Card id="comptes" className="mt-6 border-0 bg-white ring-blue-950/7">
+          {view === 'comptes' && (
+          <Card className="mt-6 border-0 bg-white ring-blue-950/7">
             <CardHeader>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -570,11 +610,10 @@ export default function DashboardPage() {
               </div>
             </CardContent>
           </Card>
+          )}
 
-          <Card
-            id="performances"
-            className="mt-6 border-0 bg-white ring-blue-950/7"
-          >
+          {view === 'performances' && (
+          <Card className="mt-6 border-0 bg-white ring-blue-950/7">
             <CardHeader>
               <CardTitle>Performances et attribution des primes</CardTitle>
               <CardDescription>
@@ -627,12 +666,12 @@ export default function DashboardPage() {
               </Table>
             </CardContent>
           </Card>
+          )}
 
-          <section className="mt-6 grid gap-6 xl:grid-cols-[.9fr_1.1fr]">
-            <Card
-              id="difficultes"
-              className="border-0 bg-white ring-blue-950/7"
-            >
+          {(view === 'difficultes' || view === 'donnees') && (
+          <section className="mt-6">
+            {view === 'difficultes' && (
+            <Card className="border-0 bg-white ring-blue-950/7">
               <CardHeader>
                 <CardTitle>Gestion des difficultés</CardTitle>
                 <CardDescription>
@@ -675,7 +714,9 @@ export default function DashboardPage() {
                 ))}
               </CardContent>
             </Card>
-            <Card id="donnees" className="border-0 bg-white ring-blue-950/7">
+            )}
+            {view === 'donnees' && (
+            <Card className="border-0 bg-white ring-blue-950/7">
               <CardHeader>
                 <CardTitle>Consultation des ventes et stocks</CardTitle>
                 <CardDescription>
@@ -711,7 +752,9 @@ export default function DashboardPage() {
                 </Table>
               </CardContent>
             </Card>
+            )}
           </section>
+          )}
         </div>
       </section>
       {prize && (
@@ -751,4 +794,8 @@ export default function DashboardPage() {
       )}
     </main>
   );
+}
+
+export default function DashboardPage() {
+  return <AdminDashboard view="pilotage" />;
 }

@@ -62,7 +62,54 @@ function fcfa(value: number) {
   return new Intl.NumberFormat('fr-FR').format(value);
 }
 
-export default function DepositairePage() {
+export type DepositaireView =
+  | 'pilotage'
+  | 'ventes'
+  | 'stocks'
+  | 'performances'
+  | 'primes'
+  | 'difficultes'
+  | 'historique';
+
+const depositaireViewMeta: Record<
+  DepositaireView,
+  { title: string; description: string }
+> = {
+  pilotage: {
+    title: 'Pilotage du dépôt',
+    description: 'Les indicateurs essentiels de votre dépôt.',
+  },
+  ventes: {
+    title: 'Ventes à vérifier',
+    description: 'Validez ou rejetez les ventes déclarées par vos revendeurs.',
+  },
+  stocks: {
+    title: 'Stocks à valider',
+    description: 'Contrôlez les déclarations de stock de votre dépôt.',
+  },
+  performances: {
+    title: 'Performances des revendeurs',
+    description: 'Consultez les résultats des revendeurs de votre dépôt.',
+  },
+  primes: {
+    title: 'Primes attribuées',
+    description: 'Consultez les primes attribuées par l’administrateur.',
+  },
+  difficultes: {
+    title: 'Difficultés signalées',
+    description: 'Suivez les remontées PRIME de vos revendeurs.',
+  },
+  historique: {
+    title: 'Historique traité',
+    description: 'Retrouvez les ventes et les stocks déjà traités.',
+  },
+};
+
+export function DepositaireDashboard({
+  view = 'pilotage',
+}: {
+  view?: DepositaireView;
+}) {
   const [sales, setSales] = useState(initialSales);
   const [stocks, setStocks] = useState(initialStocks);
   const [rejecting, setRejecting] = useState<{
@@ -253,13 +300,36 @@ export default function DepositairePage() {
               </span>
             </span>
           </a>
-          <nav className="hidden gap-5 text-xs font-black text-slate-500 xl:flex">
-            <a href="#ventes">Ventes</a>
-            <a href="#stocks">Stocks</a>
-            <a href="#performances">Performances</a>
-            <a href="#primes">Primes</a>
-            <a href="#difficultes">Difficultés</a>
-            <a href="#historique">Historique</a>
+          <nav className="hidden items-center gap-2 text-xs font-black xl:flex">
+            {[
+              { href: '/depositaire', view: 'pilotage', label: 'Pilotage' },
+              { href: '/depositaire/ventes', view: 'ventes', label: 'Ventes' },
+              { href: '/depositaire/stocks', view: 'stocks', label: 'Stocks' },
+              {
+                href: '/depositaire/performances',
+                view: 'performances',
+                label: 'Performances',
+              },
+              { href: '/depositaire/primes', view: 'primes', label: 'Primes' },
+              {
+                href: '/depositaire/difficultes',
+                view: 'difficultes',
+                label: 'Difficultés',
+              },
+              {
+                href: '/depositaire/historique',
+                view: 'historique',
+                label: 'Historique',
+              },
+            ].map((item) => (
+              <a
+                key={item.view}
+                href={item.href}
+                className={`rounded-lg px-3 py-2 ${view === item.view ? 'bg-blue-50 text-[#0a4ea8]' : 'text-slate-500 hover:bg-slate-100'}`}
+              >
+                {item.label}
+              </a>
+            ))}
           </nav>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" className="relative">
@@ -306,21 +376,18 @@ export default function DepositairePage() {
               Données de votre dépôt uniquement
             </p>
             <h1 className="mt-1 text-4xl font-black tracking-tight text-[#082f70]">
-              Contrôle des déclarations
+              {depositaireViewMeta[view].title}
             </h1>
             <p className="mt-2 text-slate-500">
-              Les ventes et stocks proviennent de Vendor‑Bot et de PostgreSQL
-              sur Render.
+              {depositaireViewMeta[view].description}
             </p>
           </div>
-          <Badge className="w-fit bg-blue-50 px-4 py-2 text-[#0a4ea8]">
-            Source prévue · Vendor‑Bot / PostgreSQL
-          </Badge>
         </div>
+        {view === 'pilotage' && (
         <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {[
             {
-              href: '#ventes',
+              href: '/depositaire/ventes',
               label: 'Ventes en attente',
               value: pendingSales.length,
               suffix: 'à vérifier',
@@ -328,7 +395,7 @@ export default function DepositairePage() {
               tone: 'bg-amber-50 text-amber-700',
             },
             {
-              href: '#stocks',
+              href: '/depositaire/stocks',
               label: 'Stocks en attente',
               value: pendingStocks.length,
               suffix: 'à vérifier',
@@ -336,7 +403,7 @@ export default function DepositairePage() {
               tone: 'bg-violet-50 text-violet-700',
             },
             {
-              href: '#historique',
+              href: '/depositaire/historique',
               label: 'CA validé du jour',
               value: fcfa(validatedToday),
               suffix: 'FCFA',
@@ -344,7 +411,7 @@ export default function DepositairePage() {
               tone: 'bg-emerald-50 text-emerald-700',
             },
             {
-              href: '#performances',
+              href: '/depositaire/performances',
               label: 'Revendeurs actifs',
               value: summary.active_vendors,
               suffix: 'dans ce dépôt',
@@ -372,8 +439,10 @@ export default function DepositairePage() {
             </a>
           ))}
         </div>
+        )}
 
-        <Card id="ventes" className="mt-7 border-0 bg-white ring-blue-950/7">
+        {view === 'ventes' && (
+        <Card className="mt-7 border-0 bg-white ring-blue-950/7">
           <CardHeader>
             <div className="flex items-center justify-between gap-4">
               <div>
@@ -456,8 +525,10 @@ export default function DepositairePage() {
             )}
           </CardContent>
         </Card>
+        )}
 
-        <Card id="stocks" className="mt-6 border-0 bg-white ring-blue-950/7">
+        {view === 'stocks' && (
+        <Card className="mt-6 border-0 bg-white ring-blue-950/7">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
@@ -521,11 +592,11 @@ export default function DepositairePage() {
             </Table>
           </CardContent>
         </Card>
+        )}
 
-        <section
-          id="performances"
-          className="mt-6 grid gap-6 xl:grid-cols-[1.2fr_.8fr]"
-        >
+        {(view === 'performances' || view === 'primes') && (
+        <section className="mt-6">
+          {view === 'performances' && (
           <Card className="border-0 bg-white ring-blue-950/7">
             <CardHeader>
               <CardTitle>Performances de mes revendeurs</CardTitle>
@@ -566,7 +637,9 @@ export default function DepositairePage() {
               </Table>
             </CardContent>
           </Card>
-          <Card id="primes" className="border-0 bg-[#082f70] text-white ring-0">
+          )}
+          {view === 'primes' && (
+          <Card className="border-0 bg-[#082f70] text-white ring-0">
             <CardHeader>
               <Award className="size-8 text-yellow-300" />
               <CardTitle className="text-white">Primes attribuées</CardTitle>
@@ -590,10 +663,14 @@ export default function DepositairePage() {
               ))}
             </CardContent>
           </Card>
+          )}
         </section>
+        )}
 
-        <section className="mt-6 grid gap-6 xl:grid-cols-2">
-          <Card id="difficultes" className="border-0 bg-white ring-blue-950/7">
+        {(view === 'difficultes' || view === 'historique') && (
+        <section className="mt-6">
+          {view === 'difficultes' && (
+          <Card className="border-0 bg-white ring-blue-950/7">
             <CardHeader>
               <CardTitle>Difficultés signalées</CardTitle>
               <CardDescription>
@@ -631,7 +708,9 @@ export default function DepositairePage() {
               ))}
             </CardContent>
           </Card>
-          <Card id="historique" className="border-0 bg-white ring-blue-950/7">
+          )}
+          {view === 'historique' && (
+          <Card className="border-0 bg-white ring-blue-950/7">
             <CardHeader>
               <CardTitle>Historique traité</CardTitle>
               <CardDescription>
@@ -685,7 +764,9 @@ export default function DepositairePage() {
               </div>
             </CardContent>
           </Card>
+          )}
         </section>
+        )}
       </div>
       {rejecting && (
         <div className="fixed inset-0 z-[100] grid place-items-center bg-[#07162f]/65 p-5 backdrop-blur-sm">
@@ -727,4 +808,8 @@ export default function DepositairePage() {
       )}
     </main>
   );
+}
+
+export default function DepositairePage() {
+  return <DepositaireDashboard view="pilotage" />;
 }
