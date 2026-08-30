@@ -10,6 +10,7 @@ import {
   CircleDollarSign,
   Database,
   LogOut,
+  Menu,
   Plus,
   Settings,
   ShoppingCart,
@@ -26,6 +27,14 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
 import {
   Table,
   TableBody,
@@ -97,6 +106,39 @@ const adminViewMeta: Record<AdminView, { title: string; description: string }> =
     description: 'Consultez les déclarations de tous les dépôts.',
   },
 };
+
+const adminNavigation = [
+  {
+    href: '/dashboard',
+    view: 'pilotage',
+    label: 'Pilotage national',
+    icon: BarChart3,
+  },
+  {
+    href: '/dashboard/comptes',
+    view: 'comptes',
+    label: 'Comptes utilisateurs',
+    icon: Users,
+  },
+  {
+    href: '/dashboard/performances',
+    view: 'performances',
+    label: 'Performances & primes',
+    icon: Award,
+  },
+  {
+    href: '/dashboard/difficultes',
+    view: 'difficultes',
+    label: 'Difficultés PRIME',
+    icon: AlertTriangle,
+  },
+  {
+    href: '/dashboard/donnees',
+    view: 'donnees',
+    label: 'Ventes & stocks',
+    icon: Database,
+  },
+] as const;
 
 export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
   const [accounts, setAccounts] = useState(initialAccounts);
@@ -296,38 +338,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
           </span>
         </a>
         <nav className="mt-10 space-y-1 text-sm font-bold">
-          {[
-            {
-              href: '/dashboard',
-              view: 'pilotage',
-              label: 'Pilotage national',
-              icon: BarChart3,
-            },
-            {
-              href: '/dashboard/comptes',
-              view: 'comptes',
-              label: 'Comptes utilisateurs',
-              icon: Users,
-            },
-            {
-              href: '/dashboard/performances',
-              view: 'performances',
-              label: 'Performances & primes',
-              icon: Award,
-            },
-            {
-              href: '/dashboard/difficultes',
-              view: 'difficultes',
-              label: 'Difficultés PRIME',
-              icon: AlertTriangle,
-            },
-            {
-              href: '/dashboard/donnees',
-              view: 'donnees',
-              label: 'Ventes & stocks',
-              icon: Database,
-            },
-          ].map(({ href, view: itemView, label, icon: Icon }) => (
+          {adminNavigation.map(({ href, view: itemView, label, icon: Icon }) => (
             <a
               key={label}
               href={href}
@@ -360,13 +371,78 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
       </aside>
       <section className="min-w-0">
         <header className="sticky top-0 z-50 flex min-h-20 items-center justify-between border-b border-blue-950/8 bg-white/95 px-5 backdrop-blur lg:px-8">
-          <div>
-            <strong className="block text-sm text-[#082f70]">
-              Vue nationale
-            </strong>
-            <span className="text-xs text-slate-500">
-              Aucun filtre de dépôt imposé
-            </span>
+          <div className="flex min-w-0 items-center gap-3">
+            <Sheet>
+              <SheetTrigger
+                render={
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="shrink-0 border-blue-200 text-[#073b86] lg:hidden"
+                    aria-label="Ouvrir le menu de navigation"
+                  />
+                }
+              >
+                <Menu />
+              </SheetTrigger>
+              <SheetContent
+                side="left"
+                className="w-[86vw] max-w-sm border-0 bg-[#073b86] p-0 text-white"
+              >
+                <SheetHeader className="border-b border-white/10 px-5 py-6 pr-14">
+                  <div className="flex items-center gap-3">
+                    <img
+                      src="/fan-site/logo-clean.png"
+                      alt="FanMilk"
+                      className="h-12 w-15 object-contain"
+                    />
+                    <div>
+                      <SheetTitle className="text-left font-black italic text-white">
+                        FanMilk Togo
+                      </SheetTitle>
+                      <SheetDescription className="text-left text-blue-100/65">
+                        Administration nationale
+                      </SheetDescription>
+                    </div>
+                  </div>
+                </SheetHeader>
+                <nav className="space-y-1 px-4 py-4 text-sm font-bold">
+                  {adminNavigation.map(
+                    ({ href, view: itemView, label, icon: Icon }) => (
+                      <a
+                        key={label}
+                        href={href}
+                        aria-current={view === itemView ? 'page' : undefined}
+                        className={`flex min-h-12 items-center gap-3 rounded-xl px-4 py-3 ${view === itemView ? 'bg-white text-[#073b86]' : 'text-blue-100/80 hover:bg-white/10 hover:text-white'}`}
+                      >
+                        <Icon className="size-5" />
+                        {label}
+                      </a>
+                    ),
+                  )}
+                </nav>
+                <div className="mt-auto border-t border-white/10 p-4">
+                  <button
+                    onClick={() => {
+                      clearSession();
+                      window.location.assign('/connexion?role=admin');
+                    }}
+                    className="flex min-h-12 w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold text-blue-100/80 hover:bg-white/10 hover:text-white"
+                  >
+                    <LogOut className="size-5" />
+                    Déconnexion
+                  </button>
+                </div>
+              </SheetContent>
+            </Sheet>
+            <div className="min-w-0">
+              <strong className="block truncate text-sm text-[#082f70]">
+                Vue nationale
+              </strong>
+              <span className="block truncate text-xs text-slate-500">
+                Aucun filtre de dépôt imposé
+              </span>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon">

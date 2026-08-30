@@ -9,6 +9,7 @@ import {
   Check,
   LogOut,
   MapPin,
+  Menu,
   MessageCircle,
   Phone,
   ShoppingCart,
@@ -25,6 +26,14 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
 import {
   Table,
   TableBody,
@@ -104,6 +113,31 @@ const depositaireViewMeta: Record<
     description: 'Retrouvez les ventes et les stocks déjà traités.',
   },
 };
+
+const depositaireNavigation = [
+  { href: '/depositaire', view: 'pilotage', label: 'Pilotage', icon: BarChart3 },
+  { href: '/depositaire/ventes', view: 'ventes', label: 'Ventes', icon: ShoppingCart },
+  { href: '/depositaire/stocks', view: 'stocks', label: 'Stocks', icon: Boxes },
+  {
+    href: '/depositaire/performances',
+    view: 'performances',
+    label: 'Performances',
+    icon: Users,
+  },
+  { href: '/depositaire/primes', view: 'primes', label: 'Primes', icon: Award },
+  {
+    href: '/depositaire/difficultes',
+    view: 'difficultes',
+    label: 'Difficultés',
+    icon: MessageCircle,
+  },
+  {
+    href: '/depositaire/historique',
+    view: 'historique',
+    label: 'Historique',
+    icon: Check,
+  },
+] as const;
 
 export function DepositaireDashboard({
   view = 'pilotage',
@@ -301,27 +335,7 @@ export function DepositaireDashboard({
             </span>
           </a>
           <nav className="hidden items-center gap-2 text-xs font-black xl:flex">
-            {[
-              { href: '/depositaire', view: 'pilotage', label: 'Pilotage' },
-              { href: '/depositaire/ventes', view: 'ventes', label: 'Ventes' },
-              { href: '/depositaire/stocks', view: 'stocks', label: 'Stocks' },
-              {
-                href: '/depositaire/performances',
-                view: 'performances',
-                label: 'Performances',
-              },
-              { href: '/depositaire/primes', view: 'primes', label: 'Primes' },
-              {
-                href: '/depositaire/difficultes',
-                view: 'difficultes',
-                label: 'Difficultés',
-              },
-              {
-                href: '/depositaire/historique',
-                view: 'historique',
-                label: 'Historique',
-              },
-            ].map((item) => (
+            {depositaireNavigation.map((item) => (
               <a
                 key={item.view}
                 href={item.href}
@@ -332,6 +346,69 @@ export function DepositaireDashboard({
             ))}
           </nav>
           <div className="flex items-center gap-2">
+            <Sheet>
+              <SheetTrigger
+                render={
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="border-blue-200 text-[#073b86] xl:hidden"
+                    aria-label="Ouvrir le menu de navigation"
+                  />
+                }
+              >
+                <Menu />
+              </SheetTrigger>
+              <SheetContent
+                side="left"
+                className="w-[86vw] max-w-sm border-0 bg-[#073b86] p-0 text-white"
+              >
+                <SheetHeader className="border-b border-white/10 px-5 py-6 pr-14">
+                  <div className="flex items-center gap-3">
+                    <img
+                      src="/fan-site/logo-clean.png"
+                      alt="FanMilk"
+                      className="h-12 w-15 object-contain"
+                    />
+                    <div>
+                      <SheetTitle className="text-left font-black italic text-white">
+                        {user?.depot.name ?? 'FanMilk Togo'}
+                      </SheetTitle>
+                      <SheetDescription className="text-left text-blue-100/65">
+                        Espace dépositaire
+                      </SheetDescription>
+                    </div>
+                  </div>
+                </SheetHeader>
+                <nav className="space-y-1 px-4 py-4 text-sm font-bold">
+                  {depositaireNavigation.map(
+                    ({ href, view: itemView, label, icon: Icon }) => (
+                      <a
+                        key={label}
+                        href={href}
+                        aria-current={view === itemView ? 'page' : undefined}
+                        className={`flex min-h-12 items-center gap-3 rounded-xl px-4 py-3 ${view === itemView ? 'bg-white text-[#073b86]' : 'text-blue-100/80 hover:bg-white/10 hover:text-white'}`}
+                      >
+                        <Icon className="size-5" />
+                        {label}
+                      </a>
+                    ),
+                  )}
+                </nav>
+                <div className="mt-auto border-t border-white/10 p-4">
+                  <button
+                    onClick={() => {
+                      clearSession();
+                      window.location.assign('/connexion?role=depositaire');
+                    }}
+                    className="flex min-h-12 w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold text-blue-100/80 hover:bg-white/10 hover:text-white"
+                  >
+                    <LogOut className="size-5" />
+                    Déconnexion
+                  </button>
+                </div>
+              </SheetContent>
+            </Sheet>
             <Button variant="ghost" size="icon" className="relative">
               <Bell />
               <span className="absolute right-2 top-2 size-2 rounded-full bg-red-500" />
