@@ -12,6 +12,7 @@ import {
   LogOut,
   Menu,
   Plus,
+  RefreshCw,
   Settings,
   ShoppingCart,
   Users,
@@ -290,6 +291,8 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
       return;
     }
     loadDashboard();
+    const refreshTimer = window.setInterval(loadDashboard, 30000);
+    return () => window.clearInterval(refreshTimer);
   }, []);
 
   function createAccount(event: FormEvent<HTMLFormElement>) {
@@ -535,6 +538,15 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                 <option>GERM DOSSEH</option>
                 <option>NBUKE RAMCO</option>
               </select>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={loadDashboard}
+                aria-label="Actualiser les données Vendor-Bot"
+                title="Actualiser les données"
+              >
+                <RefreshCw />
+              </Button>
             </div>
           </div>
           {view === 'pilotage' && (
@@ -589,6 +601,85 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
               </Card>
             ))}
             </div>
+          )}
+
+          {view === 'pilotage' && (
+            <Card className="mt-6 border-0 bg-white ring-blue-950/7">
+              <CardHeader>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <CardTitle>Dernières soumissions Vendor‑Bot</CardTitle>
+                    <CardDescription>
+                      Une vente en attente apparaît ici immédiatement, mais
+                      elle entre dans le CA seulement après validation du
+                      dépositaire.
+                    </CardDescription>
+                  </div>
+                  <Badge className="bg-amber-100 text-amber-800">
+                    {
+                      globalRows.filter(
+                        (row) =>
+                          row.type === 'Vente' && row.status === 'en_attente',
+                      ).length
+                    }{' '}
+                    vente(s) en attente
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {globalRows.length ? (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Référence</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Revendeur</TableHead>
+                          <TableHead>Dépôt</TableHead>
+                          <TableHead>Détail</TableHead>
+                          <TableHead>Statut</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {globalRows.slice(0, 6).map((row) => (
+                          <TableRow key={`${row.type}-${row.ref}`}>
+                            <TableCell className="font-bold">{row.ref}</TableCell>
+                            <TableCell>{row.type}</TableCell>
+                            <TableCell>{row.seller}</TableCell>
+                            <TableCell>{row.depot}</TableCell>
+                            <TableCell>{row.detail}</TableCell>
+                            <TableCell>
+                              <Badge
+                                variant="outline"
+                                className={
+                                  row.status === 'en_attente'
+                                    ? 'border-amber-200 bg-amber-50 text-amber-800'
+                                    : ''
+                                }
+                              >
+                                {row.status.replaceAll('_', ' ')}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl bg-blue-50/70 p-5 text-sm text-slate-600">
+                    Aucune déclaration finalisée pour le moment. Dans WhatsApp,
+                    le revendeur doit poursuivre jusqu’au message « Votre
+                    déclaration a bien été enregistrée ».
+                  </div>
+                )}
+                <a
+                  href="/dashboard/donnees"
+                  className="mt-4 inline-flex text-sm font-black text-[#0a4ea8] hover:underline"
+                >
+                  Voir toutes les ventes et tous les stocks →
+                </a>
+              </CardContent>
+            </Card>
           )}
 
           {view === 'comptes' && (

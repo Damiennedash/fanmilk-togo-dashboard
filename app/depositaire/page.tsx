@@ -289,6 +289,8 @@ export function DepositaireDashboard({
       return;
     }
     loadDashboard();
+    const refreshTimer = window.setInterval(loadDashboard, 30000);
+    return () => window.clearInterval(refreshTimer);
   }, []);
 
   async function validateSale(id: number) {
