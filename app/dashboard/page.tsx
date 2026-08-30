@@ -168,6 +168,29 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
   });
   const [adminName, setAdminName] = useState('Administrateur');
   const [loadError, setLoadError] = useState('');
+  const now = new Date();
+  const todayLabel = new Intl.DateTimeFormat('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'Africa/Lome',
+  }).format(now);
+  const currentMonth = new Intl.DateTimeFormat('fr-FR', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'Africa/Lome',
+  }).format(now);
+  const previousMonthDate = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1),
+  );
+  const previousMonth = new Intl.DateTimeFormat('fr-FR', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'Africa/Lome',
+  }).format(previousMonthDate);
+  const capitalize = (value: string) =>
+    value.charAt(0).toUpperCase() + value.slice(1);
 
   async function loadDashboard() {
     try {
@@ -492,7 +515,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
               <p className="text-sm font-black text-[#0a4ea8]">
-                Samedi 29 août 2026
+                {capitalize(todayLabel)}
               </p>
               <h1 className="mt-1 text-4xl font-black text-[#082f70]">
                 {adminViewMeta[view].title}
@@ -503,8 +526,8 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
             </div>
             <div className="flex gap-3">
               <select className="h-10 rounded-xl border bg-white px-3 text-sm font-bold">
-                <option>Août 2026</option>
-                <option>Juillet 2026</option>
+                <option>{capitalize(currentMonth)}</option>
+                <option>{capitalize(previousMonth)}</option>
               </select>
               <select className="h-10 rounded-xl border bg-white px-3 text-sm font-bold">
                 <option>Tous les dépôts</option>
