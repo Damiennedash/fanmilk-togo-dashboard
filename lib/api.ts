@@ -1,5 +1,6 @@
 const API_URL =
-  process.env.NEXT_PUBLIC_VENDOR_API_URL ?? 'http://localhost:5000';
+  process.env.NEXT_PUBLIC_VENDOR_API_URL ??
+  'https://vendor-bot-final.onrender.com';
 
 export function getToken() {
   return typeof window === 'undefined'
@@ -30,7 +31,9 @@ export async function apiFetch<T>(
       ...options.headers,
     },
   });
-  const body = await response.json().catch(() => ({}));
+  const body = (await response.json().catch(() => ({}))) as {
+    error?: string;
+  };
   if (!response.ok) {
     if (response.status === 401 && typeof window !== 'undefined')
       clearSession();
