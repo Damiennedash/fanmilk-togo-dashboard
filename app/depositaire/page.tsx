@@ -11,6 +11,7 @@ import {
   Menu,
   MessageCircle,
   Phone,
+  Settings,
   ShoppingCart,
   Users,
   X,
@@ -324,43 +325,76 @@ export function DepositaireDashboard({
   }
 
   return (
-    <main className="dashboard-shell min-h-screen bg-[#f3f7fb] text-[#122043] transition-colors">
-      <header className="sticky top-0 z-50 border-b border-blue-950/8 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex min-h-20 max-w-[1500px] items-center justify-between gap-4 px-5 lg:px-8">
-          <a href="/" className="flex items-center gap-3">
-            <img
-              src="/fan-site/logo-clean.png"
-              alt="FanMilk"
-              className="h-13 w-auto"
-            />
-            <span className="hidden sm:block">
-              <strong className="block text-sm text-[#082f70]">
-                {user?.depot.name ?? 'Votre dépôt'}
-              </strong>
-              <span className="flex items-center gap-1 text-xs text-slate-500">
-                <MapPin className="size-3" /> {user?.depot.location ?? 'Togo'}
-              </span>
-            </span>
-          </a>
-          <nav className="hidden items-center gap-2 text-xs font-black xl:flex">
-            {depositaireNavigation.map((item) => (
+    <main className="dashboard-shell min-h-screen bg-[#f3f7fb] text-[#122043] transition-colors lg:grid lg:grid-cols-[250px_1fr]">
+      <aside className="sticky top-0 hidden h-screen flex-col bg-[#073b86] px-4 py-5 text-white lg:flex">
+        <a href="/" className="flex items-center gap-3 px-2">
+          <img
+            src="/fan-site/logo-clean.png"
+            alt="FanMilk"
+            className="h-12 w-15 object-contain"
+          />
+          <span>
+            <strong className="block text-sm italic text-white">
+              FanMilk Togo
+            </strong>
+            <small className="text-[10px] uppercase tracking-[.16em] text-blue-100/60">
+              Espace dépositaire
+            </small>
+          </span>
+        </a>
+        <div className="mx-2 mt-6 rounded-2xl border border-white/10 bg-white/8 p-3">
+          <strong className="block truncate text-xs text-white">
+            {user?.depot.name ?? 'Votre dépôt'}
+          </strong>
+          <span className="mt-1 flex items-center gap-1 text-[11px] text-blue-100/65">
+            <MapPin className="size-3" /> {user?.depot.location ?? 'Togo'}
+          </span>
+        </div>
+        <nav className="mt-6 space-y-1 text-sm font-bold">
+          {depositaireNavigation.map(
+            ({ href, view: itemView, label, icon: Icon }) => (
               <a
-                key={item.view}
-                href={item.href}
-                className={`rounded-lg px-3 py-2 ${view === item.view ? 'bg-blue-50 text-[#0a4ea8]' : 'text-slate-500 hover:bg-slate-100'}`}
+                key={label}
+                href={href}
+                aria-current={view === itemView ? 'page' : undefined}
+                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 ${view === itemView ? 'bg-white text-[#073b86]' : 'text-blue-100/70 hover:bg-white/10 hover:text-white'}`}
               >
-                {item.label}
+                <Icon className="size-4" />
+                {label}
               </a>
-            ))}
-          </nav>
-          <div className="flex items-center gap-2">
+            ),
+          )}
+        </nav>
+        <div className="mt-auto border-t border-white/10 pt-4">
+          <a
+            href="/profil"
+            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-blue-100/65 hover:bg-white/10 hover:text-white"
+          >
+            <Settings className="size-4" />
+            Paramètres
+          </a>
+          <button
+            onClick={() => {
+              clearSession();
+              window.location.assign('/connexion');
+            }}
+            className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-blue-100/65 hover:bg-white/10 hover:text-white"
+          >
+            <LogOut className="size-4" />
+            Déconnexion
+          </button>
+        </div>
+      </aside>
+      <section className="min-w-0">
+        <header className="sticky top-0 z-50 flex min-h-20 items-center justify-between gap-3 border-b border-blue-950/8 bg-white/95 px-5 backdrop-blur lg:px-8">
+          <div className="flex min-w-0 items-center gap-3">
             <Sheet>
               <SheetTrigger
                 render={
                   <Button
                     variant="outline"
                     size="icon"
-                    className="border-blue-200 text-[#073b86] xl:hidden"
+                    className="shrink-0 border-blue-200 text-[#073b86] lg:hidden"
                     aria-label="Ouvrir le menu de navigation"
                   />
                 }
@@ -424,44 +458,41 @@ export function DepositaireDashboard({
                 </div>
               </SheetContent>
             </Sheet>
-            <DashboardTools
-              name={user?.name ?? 'Dépositaire'}
-              roleLabel="Dépositaire"
-              notifications={[
-                ...(summary.pending_sales > 0
-                  ? [
-                      {
-                        title: `${summary.pending_sales} vente${summary.pending_sales > 1 ? 's' : ''} à vérifier`,
-                        description: 'Des déclarations attendent votre validation.',
-                        href: '/depositaire/ventes',
-                      },
-                    ]
-                  : []),
-                ...(summary.pending_stocks > 0
-                  ? [
-                      {
-                        title: `${summary.pending_stocks} stock${summary.pending_stocks > 1 ? 's' : ''} à vérifier`,
-                        description: 'Des stocks attendent votre validation.',
-                        href: '/depositaire/stocks',
-                      },
-                    ]
-                  : []),
-              ]}
-            />
-            <button
-              onClick={() => {
-                clearSession();
-                window.location.assign('/connexion?role=depositaire');
-              }}
-              className="inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-bold text-slate-500 hover:bg-slate-100"
-            >
-              <LogOut className="size-4" />
-              <span className="hidden sm:inline">Déconnexion</span>
-            </button>
+            <div className="min-w-0">
+              <strong className="block truncate text-sm text-[#082f70]">
+                {user?.depot.name ?? 'Votre dépôt'}
+              </strong>
+              <span className="flex items-center gap-1 truncate text-xs text-slate-500">
+                <MapPin className="size-3" /> {user?.depot.location ?? 'Togo'}
+              </span>
+            </div>
           </div>
-        </div>
-      </header>
-      <div className="mx-auto max-w-[1500px] px-5 py-8 lg:px-8">
+          <DashboardTools
+            name={user?.name ?? 'Dépositaire'}
+            roleLabel="Dépositaire"
+            notifications={[
+              ...(summary.pending_sales > 0
+                ? [
+                    {
+                      title: `${summary.pending_sales} vente${summary.pending_sales > 1 ? 's' : ''} à vérifier`,
+                      description: 'Des déclarations attendent votre validation.',
+                      href: '/depositaire/ventes',
+                    },
+                  ]
+                : []),
+              ...(summary.pending_stocks > 0
+                ? [
+                    {
+                      title: `${summary.pending_stocks} stock${summary.pending_stocks > 1 ? 's' : ''} à vérifier`,
+                      description: 'Des stocks attendent votre validation.',
+                      href: '/depositaire/stocks',
+                    },
+                  ]
+                : []),
+            ]}
+          />
+        </header>
+        <div className="px-5 py-8 lg:px-8">
         {notice && (
           <div className="mb-5 flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-bold text-emerald-800">
             <MessageCircle className="mt-0.5 size-5 shrink-0" />
@@ -873,7 +904,8 @@ export function DepositaireDashboard({
           )}
         </section>
         )}
-      </div>
+        </div>
+      </section>
       {rejecting && (
         <div className="fixed inset-0 z-[100] grid place-items-center bg-[#07162f]/65 p-5 backdrop-blur-sm">
           <Card className="w-full max-w-lg bg-white">
