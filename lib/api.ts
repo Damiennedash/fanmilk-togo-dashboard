@@ -57,11 +57,20 @@ export async function apiFetch<T>(
   });
   const body = (await response.json().catch(() => ({}))) as {
     error?: string;
+    msg?: string;
   };
   if (!response.ok) {
-    if (response.status === 401 && typeof window !== 'undefined')
+    if (response.status === 401 && typeof window !== 'undefined') {
       clearSession();
-    throw new Error(body.error ?? 'Le serveur ne répond pas correctement.');
+      if (!path.startsWith('/api/auth/')) {
+        window.location.replace(
+          `/connexion?returnTo=${encodeURIComponent(window.location.pathname)}`,
+        );
+      }
+    }
+    throw new Error(
+      body.error ?? body.msg ?? 'Le serveur ne répond pas correctement.',
+    );
   }
   return body as T;
 }

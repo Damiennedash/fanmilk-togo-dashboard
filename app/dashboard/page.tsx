@@ -146,9 +146,12 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
   const [accounts, setAccounts] = useState(initialAccounts);
   const [issues, setIssues] = useState(initialIssues);
   const [showAccountForm, setShowAccountForm] = useState(false);
+  const [accountRole, setAccountRole] =
+    useState<Account['role']>('administrateur');
   const [prize, setPrize] = useState<Performance | null>(null);
   const [prizeAmount, setPrizeAmount] = useState('');
   const [notice, setNotice] = useState('');
+  const [actionError, setActionError] = useState('');
   const [performances, setPerformances] = useState<Performance[]>([]);
   const [globalRows, setGlobalRows] = useState<
     Array<{
@@ -297,6 +300,8 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
 
   function createAccount(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setNotice('');
+    setActionError('');
     const form = new FormData(event.currentTarget);
     const role = form.get('role') as Account['role'];
     const depot = depots.find(
@@ -309,16 +314,24 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
         email: form.get('email'),
         role,
         depot_id: role === 'administrateur' ? null : depot?.id,
-        phone: form.get('phone'),
+        phone:
+          role === 'revendeur' ? String(form.get('phone') ?? '').trim() : null,
         password: 'FanMilk-Temp-2026!',
       }),
     })
       .then(async () => {
         await loadDashboard();
         setShowAccountForm(false);
+        setAccountRole('administrateur');
         setNotice('Compte créé. Mot de passe temporaire : FanMilk-Temp-2026!');
       })
-      .catch((error) => setNotice(error.message));
+      .catch((error) =>
+        setActionError(
+          error instanceof Error
+            ? error.message
+            : 'Impossible de créer ce compte.',
+        ),
+      );
   }
 
   async function nextIssueState(id: number) {
@@ -510,6 +523,15 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
               </button>
             </div>
           )}
+          {actionError && (
+            <div className="mb-5 flex items-center gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700">
+              <AlertTriangle className="size-5 shrink-0" />
+              {actionError}
+              <button className="ml-auto" onClick={() => setActionError('')}>
+                ×
+              </button>
+            </div>
+          )}
           {loadError && (
             <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-bold text-red-700">
               {loadError}
@@ -693,7 +715,10 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                   </CardDescription>
                 </div>
                 <Button
-                  onClick={() => setShowAccountForm((value) => !value)}
+                  onClick={() => {
+                    setActionError('');
+                    setShowAccountForm((value) => !value);
+                  }}
                   className="bg-[#0a4ea8]"
                 >
                   <Plus />
@@ -724,6 +749,10 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                     <Label>Rôle *</Label>
                     <select
                       name="role"
+                      value={accountRole}
+                      onChange={(event) =>
+                        setAccountRole(event.target.value as Account['role'])
+                      }
                       className="mt-2 h-10 w-full rounded-md border bg-white px-3"
                     >
                       <option value="administrateur">Administrateur</option>
@@ -731,31 +760,42 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                       <option value="revendeur">Revendeur</option>
                     </select>
                   </div>
-                  <div>
-                    <Label>Dépôt de rattachement</Label>
-                    <select
-                      name="depot"
-                      className="mt-2 h-10 w-full rounded-md border bg-white px-3"
-                    >
-                      {depots.map((depot) => (
-                        <option key={depot.id}>{depot.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <Label>Téléphone revendeur</Label>
-                    <Input
-                      name="phone"
-                      placeholder="228XXXXXXXX"
-                      className="mt-2 bg-white"
-                    />
-                  </div>
+                  {accountRole !== 'administrateur' && (
+                    <div>
+                      <Label>Dépôt de rattachement *</Label>
+                      <select
+                        name="depot"
+                        required
+                        className="mt-2 h-10 w-full rounded-md border bg-white px-3"
+                      >
+                        {depots.map((depot) => (
+                          <option key={depot.id}>{depot.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  {accountRole === 'revendeur' && (
+                    <div>
+                      <Label>Téléphone WhatsApp du revendeur *</Label>
+                      <Input
+                        name="phone"
+                        type="tel"
+                        inputMode="tel"
+                        required
+                        placeholder="228XXXXXXXX"
+                        className="mt-2 bg-white"
+                      />
+                    </div>
+                  )}
                   <div className="flex items-end gap-2">
                     <Button type="submit">Enregistrer</Button>
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => setShowAccountForm(false)}
+                      onClick={() => {
+                        setShowAccountForm(false);
+                        setActionError('');
+                      }}
                     >
                       Annuler
                     </Button>
