@@ -58,6 +58,35 @@ h3 {
   font-family: var(--font-baloo), var(--font-nunito), sans-serif;
 }
 
+.dark .dashboard-shell {
+  background: #071425;
+  color: #e7eef9;
+}
+.dark .dashboard-shell header,
+.dark .dashboard-shell [data-slot='card'] {
+  border-color: rgba(148, 163, 184, 0.18);
+  background: #10233e;
+  color: #e7eef9;
+}
+.dark .dashboard-shell :is(h1, h2, h3, strong) {
+  color: #eff6ff;
+}
+.dark .dashboard-shell :is(input, select, textarea) {
+  border-color: #334b6b;
+  background: #0b1d34;
+  color: #eff6ff;
+}
+.dark .dashboard-shell [data-slot='table-header'] {
+  background: #0b1d34;
+}
+.dark .dashboard-shell [data-slot='table-row'] {
+  border-color: rgba(148, 163, 184, 0.16);
+}
+.dark .dashboard-shell .text-slate-500,
+.dark .dashboard-shell .text-slate-400 {
+  color: #a9b9ce;
+}
+
 @keyframes fan-drift {
   0%,
   100% {

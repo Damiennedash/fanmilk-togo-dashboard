@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { DashboardTools } from '@/components/dashboard-tools';
 import {
   Card,
   CardContent,
@@ -43,7 +44,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { apiFetch, clearSession } from '@/lib/api';
+import { apiFetch, clearSession, getToken } from '@/lib/api';
 
 type Account = {
   id: number;
@@ -251,10 +252,20 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
           ? error.message
           : 'Impossible de charger les données.',
       );
+      if (!getToken())
+        window.location.replace(
+          `/connexion?returnTo=${encodeURIComponent(window.location.pathname)}`,
+        );
     }
   }
 
   useEffect(() => {
+    if (!getToken()) {
+      window.location.replace(
+        `/connexion?returnTo=${encodeURIComponent(window.location.pathname)}`,
+      );
+      return;
+    }
     loadDashboard();
   }, []);
 
@@ -322,7 +333,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
   }
 
   return (
-    <main className="min-h-screen bg-[#f3f7fb] text-[#122043] lg:grid lg:grid-cols-[250px_1fr]">
+    <main className="dashboard-shell min-h-screen bg-[#f3f7fb] text-[#122043] transition-colors lg:grid lg:grid-cols-[250px_1fr]">
       <aside className="hidden min-h-screen flex-col bg-[#073b86] px-4 py-5 text-white lg:flex">
         <a href="/" className="flex items-center gap-3 px-2">
           <img
@@ -351,7 +362,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
         </nav>
         <div className="mt-auto border-t border-white/10 pt-4">
           <a
-            href="#"
+            href="/profil"
             className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-blue-100/65"
           >
             <Settings className="size-4" />
@@ -422,6 +433,13 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                   )}
                 </nav>
                 <div className="mt-auto border-t border-white/10 p-4">
+                  <a
+                    href="/profil"
+                    className="flex min-h-12 items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold text-blue-100/80 hover:bg-white/10 hover:text-white"
+                  >
+                    <Settings className="size-5" />
+                    Profil et paramètres
+                  </a>
                   <button
                     onClick={() => {
                       clearSession();
@@ -444,18 +462,17 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon">
-              <Bell />
-            </Button>
-            <span className="grid size-9 place-items-center rounded-full bg-blue-50 text-xs font-black text-[#0a4ea8]">
-              AD
-            </span>
-            <div className="hidden sm:block">
-              <strong className="block text-xs">{adminName}</strong>
-              <span className="text-[10px] text-slate-500">Administrateur</span>
-            </div>
-          </div>
+          <DashboardTools
+            name={adminName}
+            roleLabel="Administrateur"
+            notifications={[
+              {
+                title: `${summary.open_difficulties} difficulté${summary.open_difficulties > 1 ? 's' : ''} à suivre`,
+                description: 'Consultez les remontées PRIME ouvertes.',
+                href: '/dashboard/difficultes',
+              },
+            ].filter(() => summary.open_difficulties > 0)}
+          />
         </header>
         <div className="p-5 lg:p-8">
           {notice && (

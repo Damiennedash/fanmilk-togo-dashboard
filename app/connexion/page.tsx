@@ -1,24 +1,37 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import {
   ArrowLeft,
   ArrowRight,
-  Building2,
   Eye,
   EyeOff,
   LockKeyhole,
   Mail,
   ShieldCheck,
-  UserCog,
 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { apiFetch, saveSession } from '@/lib/api';
+import {
+  apiFetch,
+  clearSession,
+  getStoredUser,
+  getToken,
+  saveSession,
+  SessionUser,
+} from '@/lib/api';
 
 export default function ConnexionPage() {
-  const [role, setRole] = useState<'admin' | 'depositaire'>('depositaire');
   const [showPassword, setShowPassword] = useState(false);
   const [forgotten, setForgotten] = useState(false);
   const [message, setMessage] = useState('');
@@ -26,6 +39,25 @@ export default function ConnexionPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [sessionPrompt, setSessionPrompt] = useState(false);
+  const [existingUser, setExistingUser] = useState<SessionUser | null>(null);
+
+  useEffect(() => {
+    const checkExistingSession = () => {
+      const storedUser = getStoredUser();
+      if (getToken() && storedUser) {
+        setExistingUser(storedUser);
+        setSessionPrompt(true);
+      }
+    };
+    checkExistingSession();
+    window.addEventListener('pageshow', checkExistingSession);
+    return () => window.removeEventListener('pageshow', checkExistingSession);
+  }, []);
+
+  function userHome(user: SessionUser) {
+    return user.role === 'depositaire' ? '/depositaire' : '/dashboard';
+  }
 
   async function submitCredentials(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -34,19 +66,29 @@ export default function ConnexionPage() {
     try {
       const result = await apiFetch<{
         access_token: string;
-        user: { role: 'administrateur' | 'depositaire' };
+        user: SessionUser;
       }>('/api/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email, password }),
       });
-      const expectedRole = role === 'admin' ? 'administrateur' : 'depositaire';
-      if (result.user.role !== expectedRole)
+      if (result.user.role === 'revendeur')
         throw new Error(
-          `Ce compte est un compte ${result.user.role}. Sélectionnez le bon espace.`,
+          'Les revendeurs utilisent Vendor‑Bot sur WhatsApp pour leurs déclarations.',
         );
       saveSession(result.access_token, result.user);
-      window.location.assign(
-        result.user.role === 'depositaire' ? '/depositaire' : '/dashboard',
+      const requestedPath = new URLSearchParams(window.location.search).get(
+        'returnTo',
+      );
+      const allowedReturn =
+        requestedPath === '/profil' ||
+        (result.user.role === 'depositaire' &&
+          requestedPath?.startsWith('/depositaire')) ||
+        (result.user.role === 'administrateur' &&
+          requestedPath?.startsWith('/dashboard'));
+      window.location.replace(
+        allowedReturn && requestedPath
+          ? requestedPath
+          : userHome(result.user),
       );
     } catch (reason) {
       setError(
@@ -76,6 +118,38 @@ export default function ConnexionPage() {
 
   return (
     <main className="grid min-h-screen bg-[#f4f8fc] lg:grid-cols-[1.08fr_.92fr]">
+      <AlertDialog open={sessionPrompt}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Vous êtes déjà connecté</AlertDialogTitle>
+            <AlertDialogDescription>
+              Voulez-vous revenir à votre tableau de bord ou vous déconnecter
+              pour utiliser un autre compte ?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction
+              variant="outline"
+              onClick={() => {
+                clearSession();
+                setExistingUser(null);
+                setSessionPrompt(false);
+              }}
+            >
+              Se déconnecter
+            </AlertDialogAction>
+            <AlertDialogAction
+              onClick={() => {
+                if (existingUser)
+                  window.location.replace(userHome(existingUser));
+              }}
+              className="bg-[#0a4ea8] hover:bg-[#082f70]"
+            >
+              Revenir au tableau de bord
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <section className="relative hidden overflow-hidden bg-[radial-gradient(circle_at_68%_45%,#0e78db_0%,#0754ad_40%,#052f79_75%,#031d52_100%)] p-12 text-white lg:flex lg:flex-col lg:justify-between">
         <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(circle_at_center,white_1px,transparent_1px)] [background-size:34px_34px]" />
         <a href="/" className="relative z-40 flex items-center gap-3">
@@ -162,40 +236,13 @@ export default function ConnexionPage() {
           </div>
           {!forgotten ? (
             <>
-              <p className="text-xs font-black uppercase tracking-[.18em] text-[#0a4ea8]">
-                Authentification commune
-              </p>
-              <h2 className="mt-3 text-4xl font-black tracking-tight text-[#082f70]">
+              <h2 className="text-4xl font-black tracking-tight text-[#082f70]">
                 Bienvenue
               </h2>
               <p className="mt-3 text-sm leading-6 text-slate-500">
-                Votre rôle et votre dépôt seront vérifiés côté serveur avant
-                l’accès aux données.
+                Connectez-vous avec les identifiants de votre compte FanMilk.
+                Votre espace s’ouvrira automatiquement.
               </p>
-              <div className="mt-7 grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setRole('depositaire')}
-                  className={`rounded-2xl border p-4 text-left ${role === 'depositaire' ? 'border-[#0a4ea8] bg-blue-50 text-[#082f70]' : 'bg-white text-slate-500'}`}
-                >
-                  <Building2 className="size-5" />
-                  <strong className="mt-3 block text-sm">Dépositaire</strong>
-                  <span className="mt-1 block text-[11px]">
-                    Validation de son dépôt
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRole('admin')}
-                  className={`rounded-2xl border p-4 text-left ${role === 'admin' ? 'border-[#0a4ea8] bg-blue-50 text-[#082f70]' : 'bg-white text-slate-500'}`}
-                >
-                  <UserCog className="size-5" />
-                  <strong className="mt-3 block text-sm">Administrateur</strong>
-                  <span className="mt-1 block text-[11px]">
-                    Pilotage national
-                  </span>
-                </button>
-              </div>
               <form onSubmit={submitCredentials} className="mt-7 space-y-5">
                 <div>
                   <Label htmlFor="email">Adresse électronique</Label>

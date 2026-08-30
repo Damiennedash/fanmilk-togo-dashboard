@@ -8,8 +8,32 @@ export function getToken() {
     : sessionStorage.getItem('fanmilk_access_token');
 }
 
-export function saveSession(accessToken: string, user: unknown) {
+export type SessionUser = {
+  id: number;
+  name: string;
+  email: string;
+  phone?: string | null;
+  role: 'administrateur' | 'depositaire' | 'revendeur';
+  depot?: { id: number; name: string; location: string } | null;
+};
+
+export function getStoredUser(): SessionUser | null {
+  if (typeof window === 'undefined') return null;
+  const value = sessionStorage.getItem('fanmilk_user');
+  if (!value) return null;
+  try {
+    return JSON.parse(value) as SessionUser;
+  } catch {
+    return null;
+  }
+}
+
+export function saveSession(accessToken: string, user: SessionUser) {
   sessionStorage.setItem('fanmilk_access_token', accessToken);
+  sessionStorage.setItem('fanmilk_user', JSON.stringify(user));
+}
+
+export function updateStoredUser(user: SessionUser) {
   sessionStorage.setItem('fanmilk_user', JSON.stringify(user));
 }
 

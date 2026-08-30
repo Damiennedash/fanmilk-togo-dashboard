@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Baloo_2, Geist_Mono, Nunito } from 'next/font/google';
 import './globals.css';
+import { AppPreferences } from '@/components/app-preferences';
 
 const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL ??
@@ -58,6 +59,7 @@ export default function RootLayout({
       <body
         className={`${nunito.variable} ${baloo.variable} ${geistMono.variable} antialiased`}
       >
+        <AppPreferences />
         {children}
       </body>
     </html>

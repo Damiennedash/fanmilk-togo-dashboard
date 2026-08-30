@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Award,
   BarChart3,
-  Bell,
   Boxes,
   Check,
   LogOut,
@@ -18,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { DashboardTools } from '@/components/dashboard-tools';
 import {
   Card,
   CardContent,
@@ -43,7 +43,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
-import { apiFetch, clearSession } from '@/lib/api';
+import { apiFetch, clearSession, getToken } from '@/lib/api';
 
 type Sale = {
   id: number;
@@ -273,12 +273,20 @@ export function DepositaireDashboard({
           ? error.message
           : 'Impossible de charger les données.',
       );
-      if ((error instanceof Error ? error.message : '').includes('auth'))
-        window.location.assign('/connexion?role=depositaire');
+      if (!getToken())
+        window.location.replace(
+          `/connexion?returnTo=${encodeURIComponent(window.location.pathname)}`,
+        );
     }
   }
 
   useEffect(() => {
+    if (!getToken()) {
+      window.location.replace(
+        `/connexion?returnTo=${encodeURIComponent(window.location.pathname)}`,
+      );
+      return;
+    }
     loadDashboard();
   }, []);
 
@@ -316,7 +324,7 @@ export function DepositaireDashboard({
   }
 
   return (
-    <main className="min-h-screen bg-[#f3f7fb] text-[#122043]">
+    <main className="dashboard-shell min-h-screen bg-[#f3f7fb] text-[#122043] transition-colors">
       <header className="sticky top-0 z-50 border-b border-blue-950/8 bg-white/95 backdrop-blur">
         <div className="mx-auto flex min-h-20 max-w-[1500px] items-center justify-between gap-4 px-5 lg:px-8">
           <a href="/" className="flex items-center gap-3">
@@ -396,6 +404,13 @@ export function DepositaireDashboard({
                   )}
                 </nav>
                 <div className="mt-auto border-t border-white/10 p-4">
+                  <a
+                    href="/profil"
+                    className="flex min-h-12 items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold text-blue-100/80 hover:bg-white/10 hover:text-white"
+                  >
+                    <Users className="size-5" />
+                    Profil et paramètres
+                  </a>
                   <button
                     onClick={() => {
                       clearSession();
@@ -409,16 +424,30 @@ export function DepositaireDashboard({
                 </div>
               </SheetContent>
             </Sheet>
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell />
-              <span className="absolute right-2 top-2 size-2 rounded-full bg-red-500" />
-            </Button>
-            <div className="hidden text-right sm:block">
-              <strong className="block text-xs">
-                {user?.name ?? 'Dépositaire'}
-              </strong>
-              <span className="text-[10px] text-slate-500">Dépositaire</span>
-            </div>
+            <DashboardTools
+              name={user?.name ?? 'Dépositaire'}
+              roleLabel="Dépositaire"
+              notifications={[
+                ...(summary.pending_sales > 0
+                  ? [
+                      {
+                        title: `${summary.pending_sales} vente${summary.pending_sales > 1 ? 's' : ''} à vérifier`,
+                        description: 'Des déclarations attendent votre validation.',
+                        href: '/depositaire/ventes',
+                      },
+                    ]
+                  : []),
+                ...(summary.pending_stocks > 0
+                  ? [
+                      {
+                        title: `${summary.pending_stocks} stock${summary.pending_stocks > 1 ? 's' : ''} à vérifier`,
+                        description: 'Des stocks attendent votre validation.',
+                        href: '/depositaire/stocks',
+                      },
+                    ]
+                  : []),
+              ]}
+            />
             <button
               onClick={() => {
                 clearSession();

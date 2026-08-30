@@ -365,6 +365,12 @@ export default function Home() {
                 </p>
                 <p className="mt-3 text-3xl font-black">Lundi — Vendredi</p>
                 <p className="mt-2 text-lg text-blue-100/80">08h00 à 16h00</p>
+                <div className="mt-5 w-fit rounded-2xl border border-yellow-300/35 bg-yellow-300/10 px-5 py-3">
+                  <p className="text-xs font-black uppercase tracking-[.16em] text-yellow-300">
+                    Vente spéciale
+                  </p>
+                  <p className="mt-1 text-xl font-black">09h00 à 15h00</p>
+                </div>
               </div>
               <p className="text-sm text-blue-100/70">
                 Pour une commande ou un renseignement, appelez directement notre
