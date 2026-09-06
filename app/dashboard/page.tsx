@@ -186,6 +186,7 @@ const adminNavigation = [
 ] as const;
 
 export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
+  const [activeView, setActiveView] = useState<AdminView>(view);
   const [accounts, setAccounts] = useState(initialAccounts);
   const [issues, setIssues] = useState(initialIssues);
   const [showAccountForm, setShowAccountForm] = useState(false);
@@ -256,12 +257,12 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
     setLoading(true);
     try {
       const cached = <T,>(path: string) =>
-        apiFetchCached<T>(path, { force, maxAge: 15_000 });
+        apiFetchCached<T>(path, { force, maxAge: 300_000 });
       const storedUser = getStoredUser();
       if (storedUser?.name) setAdminName(storedUser.name);
       const depotQuery = selectedDepot ? `?depot_id=${selectedDepot}` : '';
 
-      if (view === 'pilotage') {
+      if (activeView === 'pilotage') {
         const summarySeparator = selectedDepot ? '&' : '?';
         const [nextSummary, sales, stocks, apiDepots] = await Promise.all([
           cached<any>(
@@ -291,7 +292,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
             status: row.status,
           })),
         ]);
-      } else if (view === 'comptes') {
+      } else if (activeView === 'comptes') {
         const [apiAccounts, apiDepots] = await Promise.all([
           cached<any[]>('/api/admin/users'),
           cached<any[]>('/api/admin/depots'),
@@ -309,7 +310,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
             active: row.active,
           })),
         );
-      } else if (view === 'revendeurs') {
+      } else if (activeView === 'revendeurs') {
         const [apiVendors, apiDepots] = await Promise.all([
           cached<any[]>(`/api/admin/vendors${depotQuery}`),
           cached<any[]>('/api/admin/depots'),
@@ -326,7 +327,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
             lastDeclarationAt: row.last_declaration_at,
           })),
         );
-      } else if (view === 'performances') {
+      } else if (activeView === 'performances') {
         const separator = selectedDepot ? '&' : '?';
         const [apiPerformances, apiBonuses, apiDepots] = await Promise.all([
           cached<any[]>(
@@ -362,7 +363,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
             date: new Date(row.awarded_at).toLocaleDateString('fr-FR'),
           })),
         );
-      } else if (view === 'difficultes') {
+      } else if (activeView === 'difficultes') {
         const [apiIssues, apiDepots] = await Promise.all([
           cached<any[]>(`/api/admin/difficulties${depotQuery}`),
           cached<any[]>('/api/admin/depots'),
@@ -379,7 +380,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
             state: row.state,
           })),
         );
-      } else if (view === 'donnees') {
+      } else if (activeView === 'donnees') {
         const [sales, stocks, apiDepots] = await Promise.all([
           cached<any[]>(`/api/admin/sales${depotQuery}`),
           cached<any[]>(`/api/admin/stocks${depotQuery}`),
@@ -431,7 +432,39 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
     loadDashboard();
     const refreshTimer = window.setInterval(() => loadDashboard(true), 30000);
     return () => window.clearInterval(refreshTimer);
-  }, [view, selectedMonth, selectedDepot]);
+  }, [activeView, selectedMonth, selectedDepot]);
+
+  useEffect(() => {
+    const syncViewWithUrl = () => {
+      const matchingItem = adminNavigation.find(
+        (item) => item.href === window.location.pathname,
+      );
+      setActiveView((matchingItem?.view ?? 'pilotage') as AdminView);
+    };
+    window.addEventListener('popstate', syncViewWithUrl);
+    return () => window.removeEventListener('popstate', syncViewWithUrl);
+  }, []);
+
+  useEffect(() => {
+    if (!getToken()) return;
+    const prefetchTimer = window.setTimeout(() => {
+      const paths = [
+        `/api/admin/summary?period=${selectedMonth}`,
+        '/api/admin/users',
+        '/api/admin/vendors',
+        `/api/admin/performances?period=${selectedMonth}`,
+        '/api/admin/bonuses',
+        '/api/admin/difficulties',
+        '/api/admin/sales',
+        '/api/admin/stocks',
+        '/api/admin/depots',
+      ];
+      void Promise.allSettled(
+        paths.map((path) => apiFetchCached(path, { maxAge: 300_000 })),
+      );
+    }, 250);
+    return () => window.clearTimeout(prefetchTimer);
+  }, [selectedMonth]);
 
   function createAccount(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -573,9 +606,11 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                 href={href}
                 onClick={(event) => {
                   event.preventDefault();
-                  window.location.assign(href);
+                  window.history.pushState({}, '', href);
+                  setActiveView(itemView);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
-                className={`flex items-center gap-3 rounded-xl px-3 py-3 ${view === itemView ? 'bg-white text-[#073b86]' : 'text-blue-100/70 hover:bg-white/10 hover:text-white'}`}
+                className={`flex items-center gap-3 rounded-xl px-3 py-3 ${activeView === itemView ? 'bg-white text-[#073b86]' : 'text-blue-100/70 hover:bg-white/10 hover:text-white'}`}
               >
                 <Icon className="size-4" />
                 {label}
@@ -648,10 +683,12 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                         href={href}
                         onClick={(event) => {
                           event.preventDefault();
-                          window.location.assign(href);
+                          window.history.pushState({}, '', href);
+                          setActiveView(itemView);
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
                         }}
-                        aria-current={view === itemView ? 'page' : undefined}
-                        className={`flex min-h-12 items-center gap-3 rounded-xl px-4 py-3 ${view === itemView ? 'bg-white text-[#073b86]' : 'text-blue-100/80 hover:bg-white/10 hover:text-white'}`}
+                        aria-current={activeView === itemView ? 'page' : undefined}
+                        className={`flex min-h-12 items-center gap-3 rounded-xl px-4 py-3 ${activeView === itemView ? 'bg-white text-[#073b86]' : 'text-blue-100/80 hover:bg-white/10 hover:text-white'}`}
                       >
                         <Icon className="size-5" />
                         {label}
@@ -731,10 +768,10 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                 {capitalize(todayLabel)}
               </p>
               <h1 className="mt-1 text-4xl font-black text-[#082f70]">
-                {adminViewMeta[view].title}
+                {adminViewMeta[activeView].title}
               </h1>
               <p className="mt-2 text-slate-500">
-                {adminViewMeta[view].description}
+                {adminViewMeta[activeView].description}
               </p>
             </div>
             <div className="flex gap-3">
@@ -783,7 +820,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
               <div className="h-full w-1/3 animate-pulse rounded-full bg-[#0a4ea8]" />
             </div>
           )}
-          {view === 'pilotage' && (
+          {activeView === 'pilotage' && (
             <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {[
                 {
@@ -839,7 +876,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
             </div>
           )}
 
-          {view === 'pilotage' && (
+          {activeView === 'pilotage' && (
             <Card className="mt-6 border-0 bg-white ring-blue-950/7">
               <CardHeader>
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -920,7 +957,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
             </Card>
           )}
 
-          {view === 'comptes' && (
+          {activeView === 'comptes' && (
             <Card className="mt-6 border-0 bg-white ring-blue-950/7">
               <CardHeader>
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1103,7 +1140,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
             </Card>
           )}
 
-          {view === 'revendeurs' && (
+          {activeView === 'revendeurs' && (
             <Card className="mt-6 border-0 bg-white ring-blue-950/7">
               <CardHeader>
                 <CardTitle>Répertoire des revendeurs</CardTitle>
@@ -1171,7 +1208,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
             </Card>
           )}
 
-          {view === 'performances' && (
+          {activeView === 'performances' && (
             <Card className="mt-6 border-0 bg-white ring-blue-950/7">
               <CardHeader>
                 <CardTitle>Performances et attribution des primes</CardTitle>
@@ -1260,7 +1297,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
             </Card>
           )}
 
-          {view === 'performances' && bonuses.length > 0 && (
+          {activeView === 'performances' && bonuses.length > 0 && (
             <Card className="mt-6 border-0 bg-white ring-blue-950/7">
               <CardHeader>
                 <CardTitle>Primes déjà attribuées</CardTitle>
@@ -1299,9 +1336,9 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
             </Card>
           )}
 
-          {(view === 'difficultes' || view === 'donnees') && (
+          {(activeView === 'difficultes' || activeView === 'donnees') && (
             <section className="mt-6">
-              {view === 'difficultes' && (
+              {activeView === 'difficultes' && (
                 <Card className="border-0 bg-white ring-blue-950/7">
                   <CardHeader>
                     <CardTitle>Gestion des difficultés</CardTitle>
@@ -1346,7 +1383,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                   </CardContent>
                 </Card>
               )}
-              {view === 'donnees' && (
+              {activeView === 'donnees' && (
                 <Card className="border-0 bg-white ring-blue-950/7">
                   <CardHeader>
                     <CardTitle>Consultation des ventes et stocks</CardTitle>

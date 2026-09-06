@@ -162,6 +162,7 @@ export function DepositaireDashboard({
 }: {
   view?: DepositaireView;
 }) {
+  const [activeView, setActiveView] = useState<DepositaireView>(view);
   const [sales, setSales] = useState(initialSales);
   const [stocks, setStocks] = useState(initialStocks);
   const [rejecting, setRejecting] = useState<{
@@ -214,7 +215,7 @@ export function DepositaireDashboard({
   async function loadDashboard(force = false) {
     try {
       const cached = <T,>(path: string) =>
-        apiFetchCached<T>(path, { force, maxAge: 15_000 });
+        apiFetchCached<T>(path, { force, maxAge: 300_000 });
       const storedUser = getStoredUser();
       if (storedUser?.depot) {
         setUser({ name: storedUser.name, depot: storedUser.depot });
@@ -242,7 +243,7 @@ export function DepositaireDashboard({
           status: row.status,
         }));
 
-      if (view === 'pilotage') {
+      if (activeView === 'pilotage') {
         const [nextSummary, apiSales, apiStocks] = await Promise.all([
           cached<any>('/api/depositaire/summary'),
           cached<any[]>('/api/depositaire/sales?status=en_attente'),
@@ -251,19 +252,19 @@ export function DepositaireDashboard({
         setSummary(nextSummary);
         setSales(mapSales(apiSales));
         setStocks(mapStocks(apiStocks));
-      } else if (view === 'ventes') {
+      } else if (activeView === 'ventes') {
         setSales(
           mapSales(
             await cached<any[]>('/api/depositaire/sales?status=en_attente'),
           ),
         );
-      } else if (view === 'stocks') {
+      } else if (activeView === 'stocks') {
         setStocks(
           mapStocks(
             await cached<any[]>('/api/depositaire/stocks?status=en_attente'),
           ),
         );
-      } else if (view === 'performances') {
+      } else if (activeView === 'performances') {
         const apiPerformances = await cached<any[]>(
           '/api/depositaire/performances',
         );
@@ -277,7 +278,7 @@ export function DepositaireDashboard({
             rejected: row.rejected_sales,
           })),
         );
-      } else if (view === 'primes') {
+      } else if (activeView === 'primes') {
         const apiPrizes = await cached<any[]>('/api/depositaire/bonuses');
         setPrizes(
           apiPrizes.map((row) => ({
@@ -287,7 +288,7 @@ export function DepositaireDashboard({
             date: new Date(row.awarded_at).toLocaleDateString('fr-FR'),
           })),
         );
-      } else if (view === 'difficultes') {
+      } else if (activeView === 'difficultes') {
         const apiIssues = await cached<any[]>('/api/depositaire/difficulties');
         setIssues(
           apiIssues.map((row) => ({
@@ -299,7 +300,7 @@ export function DepositaireDashboard({
             state: row.state,
           })),
         );
-      } else if (view === 'historique') {
+      } else if (activeView === 'historique') {
         const history = await cached<any>('/api/depositaire/history');
         setSales(mapSales(history.sales));
         setStocks(mapStocks(history.stocks));
@@ -328,7 +329,37 @@ export function DepositaireDashboard({
     loadDashboard();
     const refreshTimer = window.setInterval(() => loadDashboard(true), 30000);
     return () => window.clearInterval(refreshTimer);
-  }, [view]);
+  }, [activeView]);
+
+  useEffect(() => {
+    const syncViewWithUrl = () => {
+      const matchingItem = depositaireNavigation.find(
+        (item) => item.href === window.location.pathname,
+      );
+      setActiveView((matchingItem?.view ?? 'pilotage') as DepositaireView);
+    };
+    window.addEventListener('popstate', syncViewWithUrl);
+    return () => window.removeEventListener('popstate', syncViewWithUrl);
+  }, []);
+
+  useEffect(() => {
+    if (!getToken()) return;
+    const prefetchTimer = window.setTimeout(() => {
+      const paths = [
+        '/api/depositaire/summary',
+        '/api/depositaire/sales?status=en_attente',
+        '/api/depositaire/stocks?status=en_attente',
+        '/api/depositaire/performances',
+        '/api/depositaire/bonuses',
+        '/api/depositaire/difficulties',
+        '/api/depositaire/history',
+      ];
+      void Promise.allSettled(
+        paths.map((path) => apiFetchCached(path, { maxAge: 300_000 })),
+      );
+    }, 250);
+    return () => window.clearTimeout(prefetchTimer);
+  }, []);
 
   async function validateSale(id: number) {
     await apiFetch(`/api/depositaire/sales/${id}`, {
@@ -400,10 +431,12 @@ export function DepositaireDashboard({
                 href={href}
                 onClick={(event) => {
                   event.preventDefault();
-                  window.location.assign(href);
+                  window.history.pushState({}, '', href);
+                  setActiveView(itemView);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
-                aria-current={view === itemView ? 'page' : undefined}
-                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 ${view === itemView ? 'bg-white text-[#073b86]' : 'text-blue-100/70 hover:bg-white/10 hover:text-white'}`}
+                aria-current={activeView === itemView ? 'page' : undefined}
+                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 ${activeView === itemView ? 'bg-white text-[#073b86]' : 'text-blue-100/70 hover:bg-white/10 hover:text-white'}`}
               >
                 <Icon className="size-4" />
                 {label}
@@ -476,10 +509,12 @@ export function DepositaireDashboard({
                         href={href}
                         onClick={(event) => {
                           event.preventDefault();
-                          window.location.assign(href);
+                          window.history.pushState({}, '', href);
+                          setActiveView(itemView);
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
                         }}
-                        aria-current={view === itemView ? 'page' : undefined}
-                        className={`flex min-h-12 items-center gap-3 rounded-xl px-4 py-3 ${view === itemView ? 'bg-white text-[#073b86]' : 'text-blue-100/80 hover:bg-white/10 hover:text-white'}`}
+                        aria-current={activeView === itemView ? 'page' : undefined}
+                        className={`flex min-h-12 items-center gap-3 rounded-xl px-4 py-3 ${activeView === itemView ? 'bg-white text-[#073b86]' : 'text-blue-100/80 hover:bg-white/10 hover:text-white'}`}
                       >
                         <Icon className="size-5" />
                         {label}
@@ -564,14 +599,14 @@ export function DepositaireDashboard({
                 Données de votre dépôt uniquement
               </p>
               <h1 className="mt-1 text-4xl font-black tracking-tight text-[#082f70]">
-                {depositaireViewMeta[view].title}
+                {depositaireViewMeta[activeView].title}
               </h1>
               <p className="mt-2 text-slate-500">
-                {depositaireViewMeta[view].description}
+                {depositaireViewMeta[activeView].description}
               </p>
             </div>
           </div>
-          {view === 'pilotage' && (
+          {activeView === 'pilotage' && (
             <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {[
                 {
@@ -629,7 +664,7 @@ export function DepositaireDashboard({
             </div>
           )}
 
-          {view === 'ventes' && (
+          {activeView === 'ventes' && (
             <Card className="mt-7 border-0 bg-white ring-blue-950/7">
               <CardHeader>
                 <div className="flex items-center justify-between gap-4">
@@ -715,7 +750,7 @@ export function DepositaireDashboard({
             </Card>
           )}
 
-          {view === 'stocks' && (
+          {activeView === 'stocks' && (
             <Card className="mt-6 border-0 bg-white ring-blue-950/7">
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -784,9 +819,9 @@ export function DepositaireDashboard({
             </Card>
           )}
 
-          {(view === 'performances' || view === 'primes') && (
+          {(activeView === 'performances' || activeView === 'primes') && (
             <section className="mt-6">
-              {view === 'performances' && (
+              {activeView === 'performances' && (
                 <Card className="border-0 bg-white ring-blue-950/7">
                   <CardHeader>
                     <CardTitle>Performances de mes revendeurs</CardTitle>
@@ -831,7 +866,7 @@ export function DepositaireDashboard({
                   </CardContent>
                 </Card>
               )}
-              {view === 'primes' && (
+              {activeView === 'primes' && (
                 <Card className="border-0 bg-[#082f70] text-white ring-0">
                   <CardHeader>
                     <Award className="size-8 text-yellow-300" />
@@ -865,9 +900,9 @@ export function DepositaireDashboard({
             </section>
           )}
 
-          {(view === 'difficultes' || view === 'historique') && (
+          {(activeView === 'difficultes' || activeView === 'historique') && (
             <section className="mt-6">
-              {view === 'difficultes' && (
+              {activeView === 'difficultes' && (
                 <Card className="border-0 bg-white ring-blue-950/7">
                   <CardHeader>
                     <CardTitle>Difficultés signalées</CardTitle>
@@ -907,7 +942,7 @@ export function DepositaireDashboard({
                   </CardContent>
                 </Card>
               )}
-              {view === 'historique' && (
+              {activeView === 'historique' && (
                 <Card className="border-0 bg-white ring-blue-950/7">
                   <CardHeader>
                     <CardTitle>Historique traité</CardTitle>
