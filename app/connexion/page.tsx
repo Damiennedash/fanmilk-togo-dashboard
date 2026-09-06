@@ -38,6 +38,7 @@ export default function ConnexionPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
   const [error, setError] = useState('');
   const [sessionPrompt, setSessionPrompt] = useState(false);
   const [existingUser, setExistingUser] = useState<SessionUser | null>(null);
@@ -100,6 +101,8 @@ export default function ConnexionPage() {
   }
   async function submitReset(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setResetLoading(true);
+    setMessage('');
     const form = new FormData(event.currentTarget);
     try {
       const result = await apiFetch<{ message: string }>(
@@ -113,6 +116,8 @@ export default function ConnexionPage() {
           ? reason.message
           : 'Service momentanément indisponible.',
       );
+    } finally {
+      setResetLoading(false);
     }
   }
 
@@ -336,8 +341,12 @@ export default function ConnexionPage() {
                     {message}
                   </p>
                 )}
-                <Button type="submit" className="mt-5 h-12 w-full bg-[#0a4ea8]">
-                  Envoyer le lien
+                <Button
+                  type="submit"
+                  disabled={resetLoading}
+                  className="mt-5 h-12 w-full bg-[#0a4ea8]"
+                >
+                  {resetLoading ? 'Envoi…' : 'Envoyer le lien'}
                 </Button>
                 <Button
                   type="button"
