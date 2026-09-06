@@ -35,6 +35,7 @@ export default function ConnexionPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [forgotten, setForgotten] = useState(false);
   const [message, setMessage] = useState('');
+  const [resetError, setResetError] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -103,6 +104,7 @@ export default function ConnexionPage() {
     event.preventDefault();
     setResetLoading(true);
     setMessage('');
+    setResetError('');
     const form = new FormData(event.currentTarget);
     try {
       const result = await apiFetch<{ message: string }>(
@@ -111,7 +113,7 @@ export default function ConnexionPage() {
       );
       setMessage(result.message);
     } catch (reason) {
-      setMessage(
+      setResetError(
         reason instanceof Error
           ? reason.message
           : 'Service momentanément indisponible.',
@@ -341,6 +343,11 @@ export default function ConnexionPage() {
                     {message}
                   </p>
                 )}
+                {resetError && (
+                  <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm font-bold text-red-700">
+                    {resetError}
+                  </p>
+                )}
                 <Button
                   type="submit"
                   disabled={resetLoading}
@@ -354,6 +361,7 @@ export default function ConnexionPage() {
                   onClick={() => {
                     setForgotten(false);
                     setMessage('');
+                    setResetError('');
                   }}
                   className="mt-2 w-full"
                 >
