@@ -4,6 +4,14 @@ const API_URL =
 
 const responseCache = new Map<string, { expiresAt: number; value: unknown }>();
 const pendingRequests = new Map<string, Promise<unknown>>();
+const CACHE_PREFIX = 'fanmilk_api_cache:';
+
+function clearStoredApiCache() {
+  if (typeof window === 'undefined') return;
+  Object.keys(sessionStorage)
+    .filter((key) => key.startsWith(CACHE_PREFIX))
+    .forEach((key) => sessionStorage.removeItem(key));
+}
 
 export function getToken() {
   return typeof window === 'undefined'
@@ -32,6 +40,7 @@ export function getStoredUser(): SessionUser | null {
 }
 
 export function saveSession(accessToken: string, user: SessionUser) {
+  invalidateApiCache();
   sessionStorage.setItem('fanmilk_access_token', accessToken);
   sessionStorage.setItem('fanmilk_user', JSON.stringify(user));
 }
@@ -45,6 +54,7 @@ export function clearSession() {
   sessionStorage.removeItem('fanmilk_user');
   responseCache.clear();
   pendingRequests.clear();
+  clearStoredApiCache();
 }
 
 export async function apiFetch<T>(
@@ -89,12 +99,31 @@ export async function apiFetchCached<T>(
   if (!force && cached && cached.expiresAt > Date.now()) {
     return cached.value as T;
   }
+  const storedKey = `${CACHE_PREFIX}${encodeURIComponent(path)}`;
+  if (!force && typeof window !== 'undefined') {
+    try {
+      const stored = JSON.parse(sessionStorage.getItem(storedKey) ?? 'null') as
+        | { expiresAt: number; value: T }
+        | null;
+      if (stored && stored.expiresAt > Date.now()) {
+        responseCache.set(key, stored);
+        return stored.value;
+      }
+      sessionStorage.removeItem(storedKey);
+    } catch {
+      sessionStorage.removeItem(storedKey);
+    }
+  }
   const pending = pendingRequests.get(key);
   if (!force && pending) return pending as Promise<T>;
 
   const request = apiFetch<T>(path)
     .then((value) => {
-      responseCache.set(key, { value, expiresAt: Date.now() + maxAge });
+      const entry = { value, expiresAt: Date.now() + maxAge };
+      responseCache.set(key, entry);
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem(storedKey, JSON.stringify(entry));
+      }
       return value;
     })
     .finally(() => pendingRequests.delete(key));
@@ -104,4 +133,6 @@ export async function apiFetchCached<T>(
 
 export function invalidateApiCache() {
   responseCache.clear();
+  pendingRequests.clear();
+  clearStoredApiCache();
 }

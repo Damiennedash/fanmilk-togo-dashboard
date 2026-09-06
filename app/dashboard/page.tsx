@@ -1,7 +1,6 @@
 'use client';
 
 import { FormEvent, useEffect, useState } from 'react';
-import Link from 'next/link';
 import {
   AlertTriangle,
   Award,
@@ -553,7 +552,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
   return (
     <main className="dashboard-shell min-h-screen bg-[#f3f7fb] text-[#122043] transition-colors lg:grid lg:grid-cols-[250px_1fr]">
       <aside className="hidden min-h-screen flex-col bg-[#073b86] px-4 py-5 text-white lg:flex">
-        <Link href="/" className="flex items-center gap-3 px-2">
+        <a href="/" className="flex items-center gap-3 px-2">
           <img
             src="/fan-site/logo-clean.png"
             alt="FanMilk"
@@ -565,29 +564,29 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
               Administration nationale
             </small>
           </span>
-        </Link>
+        </a>
         <nav className="mt-10 space-y-1 text-sm font-bold">
           {adminNavigation.map(
             ({ href, view: itemView, label, icon: Icon }) => (
-              <Link
+              <a
                 key={label}
                 href={href}
                 className={`flex items-center gap-3 rounded-xl px-3 py-3 ${view === itemView ? 'bg-white text-[#073b86]' : 'text-blue-100/70 hover:bg-white/10 hover:text-white'}`}
               >
                 <Icon className="size-4" />
                 {label}
-              </Link>
+              </a>
             ),
           )}
         </nav>
         <div className="mt-auto border-t border-white/10 pt-4">
-          <Link
+          <a
             href="/profil"
             className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-blue-100/65"
           >
             <Settings className="size-4" />
             Paramètres
-          </Link>
+          </a>
           <button
             onClick={() => {
               clearSession();
@@ -640,7 +639,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                 <nav className="space-y-1 px-4 py-4 text-sm font-bold">
                   {adminNavigation.map(
                     ({ href, view: itemView, label, icon: Icon }) => (
-                      <Link
+                      <a
                         key={label}
                         href={href}
                         aria-current={view === itemView ? 'page' : undefined}
@@ -648,18 +647,18 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                       >
                         <Icon className="size-5" />
                         {label}
-                      </Link>
+                      </a>
                     ),
                   )}
                 </nav>
                 <div className="mt-auto border-t border-white/10 p-4">
-                  <Link
+                  <a
                     href="/profil"
                     className="flex min-h-12 items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold text-blue-100/80 hover:bg-white/10 hover:text-white"
                   >
                     <Settings className="size-5" />
                     Profil et paramètres
-                  </Link>
+                  </a>
                   <button
                     onClick={() => {
                       clearSession();
