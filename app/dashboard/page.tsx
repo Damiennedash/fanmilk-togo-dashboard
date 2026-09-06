@@ -571,6 +571,10 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
               <a
                 key={label}
                 href={href}
+                onClick={(event) => {
+                  event.preventDefault();
+                  window.location.assign(href);
+                }}
                 className={`flex items-center gap-3 rounded-xl px-3 py-3 ${view === itemView ? 'bg-white text-[#073b86]' : 'text-blue-100/70 hover:bg-white/10 hover:text-white'}`}
               >
                 <Icon className="size-4" />
@@ -642,6 +646,10 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                       <a
                         key={label}
                         href={href}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          window.location.assign(href);
+                        }}
                         aria-current={view === itemView ? 'page' : undefined}
                         className={`flex min-h-12 items-center gap-3 rounded-xl px-4 py-3 ${view === itemView ? 'bg-white text-[#073b86]' : 'text-blue-100/80 hover:bg-white/10 hover:text-white'}`}
                       >
