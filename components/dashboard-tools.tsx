@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { Bell, BellOff, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -78,7 +79,10 @@ export function DashboardTools({
             <span className="absolute right-2 top-2 size-2 rounded-full bg-red-500 ring-2 ring-white" />
           )}
         </PopoverTrigger>
-        <PopoverContent align="end" className="w-[min(22rem,calc(100vw-2rem))] p-0">
+        <PopoverContent
+          align="end"
+          className="w-[min(22rem,calc(100vw-2rem))] p-0"
+        >
           <PopoverHeader className="border-b px-4 py-3">
             <PopoverTitle className="font-black text-[#082f70]">
               Notifications
@@ -92,7 +96,7 @@ export function DashboardTools({
           <div className="p-2">
             {visibleNotifications.length ? (
               visibleNotifications.map((item) => (
-                <a
+                <Link
                   key={`${item.href}-${item.title}`}
                   href={item.href}
                   className="flex items-center gap-3 rounded-xl px-3 py-3 hover:bg-blue-50"
@@ -107,7 +111,7 @@ export function DashboardTools({
                     </span>
                   </span>
                   <ChevronRight className="size-4 text-slate-400" />
-                </a>
+                </Link>
               ))
             ) : (
               <p className="px-3 py-6 text-center text-sm text-slate-500">
@@ -117,15 +121,15 @@ export function DashboardTools({
               </p>
             )}
           </div>
-          <a
+          <Link
             href="/profil#reglages"
             className="block border-t px-4 py-3 text-center text-xs font-black text-[#0a4ea8] hover:bg-blue-50"
           >
             Régler les notifications
-          </a>
+          </Link>
         </PopoverContent>
       </Popover>
-      <a
+      <Link
         href="/profil"
         aria-label="Ouvrir mon profil"
         className="flex items-center gap-3 rounded-xl p-1 hover:bg-blue-50"
@@ -137,7 +141,7 @@ export function DashboardTools({
           <strong className="block max-w-40 truncate text-xs">{name}</strong>
           <span className="text-[10px] text-slate-500">{roleLabel}</span>
         </span>
-      </a>
+      </Link>
     </div>
   );
 }
