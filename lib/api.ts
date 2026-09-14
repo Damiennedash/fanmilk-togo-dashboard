@@ -90,6 +90,26 @@ export async function apiFetch<T>(
   return body as T;
 }
 
+export async function apiFetchWithToken<T>(
+  path: string,
+  token: string,
+  options: RequestInit = {},
+): Promise<T> {
+  const headers = new Headers(options.headers);
+  headers.set('Content-Type', 'application/json');
+  headers.set('Authorization', `Bearer ${token}`);
+  const response = await fetch(`${API_URL}${path}`, { ...options, headers });
+  const body = (await response.json().catch(() => ({}))) as {
+    error?: string;
+    msg?: string;
+  };
+  if (!response.ok)
+    throw new Error(
+      body.error ?? body.msg ?? `La requête a échoué (${response.status}).`,
+    );
+  return body as T;
+}
+
 export async function apiFetchCached<T>(
   path: string,
   { maxAge = 15_000, force = false }: { maxAge?: number; force?: boolean } = {},

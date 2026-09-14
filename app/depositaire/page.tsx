@@ -205,6 +205,24 @@ export function DepositaireDashboard({
     }>
   >([]);
   const [loadError, setLoadError] = useState('');
+  const now = new Date();
+  const [selectedMonth, setSelectedMonth] = useState(
+    `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`,
+  );
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [productTotals, setProductTotals] = useState<
+    Array<{ sku: string; name: string; quantity: number }>
+  >([]);
+  const [productBreakdown, setProductBreakdown] = useState<
+    Array<{
+      vendor: { phone: string; name: string };
+      depot: string;
+      sku: string;
+      product: string;
+      quantity: number;
+    }>
+  >([]);
   const pendingSales = sales.filter((sale) => sale.status === 'en_attente');
   const pendingStocks = stocks.filter((stock) => stock.status === 'en_attente');
   const validatedToday = useMemo(
@@ -259,11 +277,17 @@ export function DepositaireDashboard({
           ),
         );
       } else if (activeView === 'stocks') {
-        setStocks(
-          mapStocks(
-            await cached<any[]>('/api/depositaire/stocks?status=en_attente'),
-          ),
-        );
+        const productParams = new URLSearchParams({ period: selectedMonth });
+        if (dateFrom) productParams.set('date_from', dateFrom);
+        if (dateTo) productParams.set('date_to', dateTo);
+        const [apiStocks, totals, breakdown] = await Promise.all([
+          cached<any[]>('/api/depositaire/stocks?status=en_attente'),
+          cached<any[]>(`/api/depositaire/product-totals?${productParams.toString()}`),
+          cached<any[]>(`/api/depositaire/product-breakdown?${productParams.toString()}`),
+        ]);
+        setStocks(mapStocks(apiStocks));
+        setProductTotals(totals);
+        setProductBreakdown(breakdown);
       } else if (activeView === 'performances') {
         const apiPerformances = await cached<any[]>(
           '/api/depositaire/performances',
@@ -329,7 +353,16 @@ export function DepositaireDashboard({
     loadDashboard();
     const refreshTimer = window.setInterval(() => loadDashboard(true), 30000);
     return () => window.clearInterval(refreshTimer);
-  }, [activeView]);
+  }, [activeView, selectedMonth, dateFrom, dateTo]);
+
+  useEffect(() => {
+    if (!notice && !loadError) return;
+    const timer = window.setTimeout(() => {
+      setNotice('');
+      setLoadError('');
+    }, 5_000);
+    return () => window.clearTimeout(timer);
+  }, [notice, loadError]);
 
   useEffect(() => {
     const syncViewWithUrl = () => {
@@ -672,7 +705,7 @@ export function DepositaireDashboard({
                     <CardTitle>Ventes à vérifier</CardTitle>
                     <CardDescription>
                       Uniquement les ventes « en_attente » des revendeurs de
-                      SUPER DEPOT
+                      {user?.depot.name ?? 'votre dépôt'}
                     </CardDescription>
                   </div>
                   <Badge className="bg-amber-50 text-amber-800">
@@ -751,7 +784,41 @@ export function DepositaireDashboard({
           )}
 
           {activeView === 'stocks' && (
-            <Card className="mt-6 border-0 bg-white ring-blue-950/7">
+            <div className="mt-6 space-y-6">
+              <div className="flex flex-wrap justify-end gap-3">
+                <Input
+                  type="month"
+                  value={selectedMonth}
+                  onChange={(event) => setSelectedMonth(event.target.value)}
+                  className="w-auto bg-white"
+                  aria-label="Mois des stocks vendus"
+                />
+                <Input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} className="w-auto bg-white" aria-label="Date de début" />
+                <Input type="date" value={dateTo} min={dateFrom || undefined} onChange={(event) => setDateTo(event.target.value)} className="w-auto bg-white" aria-label="Date de fin" />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-3">
+                {productTotals.map((product) => {
+                  const image = product.sku === 'FANXTRA' ? '/fan-site/fanxtra.png' : product.sku === 'FANCHOCO' ? '/fan-site/fanchoco.jpg' : '/fan-site/fanvanille.png';
+                  return (
+                    <Card key={product.sku} className="border-0 bg-white ring-blue-950/7">
+                      <CardContent className="flex items-center gap-4 p-5">
+                        <img src={image} alt={product.name} className="size-20 rounded-xl object-contain" />
+                        <div><p className="font-black text-[#082f70]">{product.name}</p><p className="text-3xl font-black">{product.quantity}</p><p className="text-xs text-slate-500">unités vendues au total</p></div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+              <Card className="border-0 bg-white ring-blue-950/7">
+                <CardHeader><CardTitle>Ventes par produit et par revendeur</CardTitle><CardDescription>Quantités validées sur le mois sélectionné.</CardDescription></CardHeader>
+                <CardContent className="overflow-x-auto">
+                  <Table><TableHeader><TableRow><TableHead>Revendeur</TableHead><TableHead>Produit</TableHead><TableHead>Quantité</TableHead></TableRow></TableHeader><TableBody>
+                    {productBreakdown.map((row) => <TableRow key={`${row.vendor.phone}-${row.sku}`}><TableCell className="font-bold">{row.vendor.name}</TableCell><TableCell>{row.product}</TableCell><TableCell>{row.quantity}</TableCell></TableRow>)}
+                    {!productBreakdown.length && <TableRow><TableCell colSpan={3} className="py-8 text-center text-slate-500">Aucune vente validée pour cette période.</TableCell></TableRow>}
+                  </TableBody></Table>
+                </CardContent>
+              </Card>
+            <Card className="border-0 bg-white ring-blue-950/7">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
@@ -817,6 +884,7 @@ export function DepositaireDashboard({
                 </Table>
               </CardContent>
             </Card>
+            </div>
           )}
 
           {(activeView === 'performances' || activeView === 'primes') && (
@@ -911,21 +979,38 @@ export function DepositaireDashboard({
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    {issues.map((row) => (
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      {[
+                        ['Ouvertes', 'ouverte', 'border-red-200 bg-red-50 text-red-800'],
+                        ['En cours', 'en_cours', 'border-amber-200 bg-amber-50 text-amber-800'],
+                        ['Résolues', 'resolue', 'border-emerald-200 bg-emerald-50 text-emerald-800'],
+                      ].map(([label, state, tone]) => (
+                        <div key={state} className={`rounded-xl border p-3 ${tone}`}>
+                          <strong className="text-2xl">{issues.filter((item) => item.state === state).length}</strong>
+                          <span className="ml-2 text-sm font-bold">{label}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {[...issues].sort((a, b) => {
+                      const rank: Record<string, number> = { ouverte: 0, en_cours: 1, resolue: 2 };
+                      return rank[a.state] - rank[b.state];
+                    }).map((row) => (
                       <div
-                        key={row.seller}
-                        className="rounded-2xl border border-slate-100 p-4"
+                        key={row.id}
+                        className={`rounded-2xl border p-4 ${row.state === 'resolue' ? 'border-emerald-200 bg-emerald-50/60' : row.state === 'en_cours' ? 'border-amber-200 bg-amber-50/60' : 'border-red-200 bg-red-50/60'}`}
                       >
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <strong>{row.seller}</strong>
                           <Badge
                             className={
-                              row.state === 'ouverte'
-                                ? 'bg-red-50 text-red-700'
-                                : 'bg-amber-50 text-amber-700'
+                              row.state === 'resolue'
+                                ? 'bg-emerald-600 text-white'
+                                : row.state === 'en_cours'
+                                  ? 'bg-amber-500 text-white'
+                                  : 'bg-red-600 text-white'
                             }
                           >
-                            {row.state}
+                            {row.state.replace('_', ' ')}
                           </Badge>
                         </div>
                         <p className="mt-2 text-sm font-bold text-[#0a4ea8]">
@@ -939,6 +1024,7 @@ export function DepositaireDashboard({
                         </p>
                       </div>
                     ))}
+                    {!issues.length && <p className="rounded-xl bg-slate-50 p-5 text-center text-sm text-slate-500">Aucune difficulté signalée.</p>}
                   </CardContent>
                 </Card>
               )}

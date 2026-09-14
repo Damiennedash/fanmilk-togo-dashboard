@@ -95,6 +95,14 @@ type Performance = {
   validated: number;
   rejected: number;
   pending: number;
+  dailySales: Array<{
+    id: number;
+    date: string;
+    amount: number;
+    eligible: boolean;
+    bonusAwarded: boolean;
+    bonusAmount: number;
+  }>;
 };
 type BonusRow = {
   id: number;
@@ -195,8 +203,6 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
   const [editRole, setEditRole] = useState<Account['role']>('administrateur');
   const [vendors, setVendors] = useState<VendorRow[]>([]);
-  const [prize, setPrize] = useState<Performance | null>(null);
-  const [prizeAmount, setPrizeAmount] = useState('');
   const [notice, setNotice] = useState('');
   const [actionError, setActionError] = useState('');
   const [performances, setPerformances] = useState<Performance[]>([]);
@@ -209,6 +215,19 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
       depot: string;
       detail: string;
       status: string;
+      date: string;
+    }>
+  >([]);
+  const [productTotals, setProductTotals] = useState<
+    Array<{ sku: string; name: string; quantity: number }>
+  >([]);
+  const [productBreakdown, setProductBreakdown] = useState<
+    Array<{
+      vendor: { phone: string; name: string };
+      depot: string;
+      sku: string;
+      product: string;
+      quantity: number;
     }>
   >([]);
   const [depots, setDepots] = useState<Array<{ id: number; name: string }>>([]);
@@ -226,6 +245,8 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
     `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, '0')}`;
   const [selectedMonth, setSelectedMonth] = useState(monthKey(now));
   const [selectedDepot, setSelectedDepot] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const todayLabel = new Intl.DateTimeFormat('fr-FR', {
     weekday: 'long',
     day: 'numeric',
@@ -261,6 +282,11 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
       const storedUser = getStoredUser();
       if (storedUser?.name) setAdminName(storedUser.name);
       const depotQuery = selectedDepot ? `?depot_id=${selectedDepot}` : '';
+      const query = new URLSearchParams();
+      if (selectedDepot) query.set('depot_id', selectedDepot);
+      if (dateFrom) query.set('date_from', dateFrom);
+      if (dateTo) query.set('date_to', dateTo);
+      const filteredQuery = query.size ? `?${query.toString()}` : '';
 
       if (activeView === 'pilotage') {
         const summarySeparator = selectedDepot ? '&' : '?';
@@ -268,8 +294,8 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
           cached<any>(
             `/api/admin/summary${depotQuery}${summarySeparator}period=${selectedMonth}`,
           ),
-          cached<any[]>(`/api/admin/sales${depotQuery}`),
-          cached<any[]>(`/api/admin/stocks${depotQuery}`),
+          cached<any[]>(`/api/admin/sales${filteredQuery}`),
+          cached<any[]>(`/api/admin/stocks${filteredQuery}`),
           cached<any[]>('/api/admin/depots'),
         ]);
         setSummary(nextSummary);
@@ -280,8 +306,9 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
             ref: `V-${row.id}`,
             seller: row.vendor.name,
             depot: row.depot.name,
-            detail: `${Number(row.amount).toLocaleString('fr-FR')} FCFA`,
+            detail: `${Number(row.amount).toLocaleString('fr-FR')} FCFA · ${(row.lines ?? []).map((line: any) => `${line.sku}: ${line.quantity}`).join(', ') || 'aucun produit'}`,
             status: row.status,
+            date: row.declared_at,
           })),
           ...stocks.map((row) => ({
             type: 'Stock',
@@ -290,6 +317,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
             depot: row.depot.name,
             detail: `${row.product.sku} · ${row.quantity} unités`,
             status: row.status,
+            date: row.declared_at,
           })),
         ]);
       } else if (activeView === 'comptes') {
@@ -333,7 +361,9 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
           cached<any[]>(
             `/api/admin/performances${depotQuery}${separator}period=${selectedMonth}`,
           ),
-          cached<any[]>('/api/admin/bonuses'),
+          cached<any[]>(
+            `/api/admin/bonuses${depotQuery}${separator}period=${selectedMonth}`,
+          ),
           cached<any[]>('/api/admin/depots'),
         ]);
         setDepots(apiDepots);
@@ -351,6 +381,14 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
             validated: row.validated_sales,
             rejected: row.rejected_sales,
             pending: row.pending_sales,
+            dailySales: (row.daily_sales ?? []).map((sale: any) => ({
+              id: sale.id,
+              date: sale.date,
+              amount: Number(sale.amount),
+              eligible: sale.eligible,
+              bonusAwarded: sale.bonus_awarded,
+              bonusAmount: Number(sale.bonus_amount || 0),
+            })),
           })),
         );
         setBonuses(
@@ -365,7 +403,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
         );
       } else if (activeView === 'difficultes') {
         const [apiIssues, apiDepots] = await Promise.all([
-          cached<any[]>(`/api/admin/difficulties${depotQuery}`),
+          cached<any[]>(`/api/admin/difficulties${filteredQuery}`),
           cached<any[]>('/api/admin/depots'),
         ]);
         setDepots(apiDepots);
@@ -381,20 +419,27 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
           })),
         );
       } else if (activeView === 'donnees') {
-        const [sales, stocks, apiDepots] = await Promise.all([
-          cached<any[]>(`/api/admin/sales${depotQuery}`),
-          cached<any[]>(`/api/admin/stocks${depotQuery}`),
+        const productParams = new URLSearchParams(query);
+        productParams.set('period', selectedMonth);
+        const [sales, stocks, apiDepots, totals, breakdown] = await Promise.all([
+          cached<any[]>(`/api/admin/sales${filteredQuery}`),
+          cached<any[]>(`/api/admin/stocks${filteredQuery}`),
           cached<any[]>('/api/admin/depots'),
+          cached<any[]>(`/api/admin/product-totals?${productParams.toString()}`),
+          cached<any[]>(`/api/admin/product-breakdown?${productParams.toString()}`),
         ]);
         setDepots(apiDepots);
+        setProductTotals(totals);
+        setProductBreakdown(breakdown);
         setGlobalRows([
           ...sales.map((row) => ({
             type: 'Vente',
             ref: `V-${row.id}`,
             seller: row.vendor.name,
             depot: row.depot.name,
-            detail: `${Number(row.amount).toLocaleString('fr-FR')} FCFA`,
+            detail: `${Number(row.amount).toLocaleString('fr-FR')} FCFA · ${(row.lines ?? []).map((line: any) => `${line.sku}: ${line.quantity}`).join(', ') || 'aucun produit'}`,
             status: row.status,
+            date: row.declared_at,
           })),
           ...stocks.map((row) => ({
             type: 'Stock',
@@ -403,6 +448,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
             depot: row.depot.name,
             detail: `${row.product.sku} · ${row.quantity} unités`,
             status: row.status,
+            date: row.declared_at,
           })),
         ]);
       }
@@ -432,7 +478,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
     loadDashboard();
     const refreshTimer = window.setInterval(() => loadDashboard(true), 30000);
     return () => window.clearInterval(refreshTimer);
-  }, [activeView, selectedMonth, selectedDepot]);
+  }, [activeView, selectedMonth, selectedDepot, dateFrom, dateTo]);
 
   useEffect(() => {
     const syncViewWithUrl = () => {
@@ -482,8 +528,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
         email: form.get('email'),
         role,
         depot_id: role === 'administrateur' ? null : depot?.id,
-        phone:
-          role === 'revendeur' ? String(form.get('phone') ?? '').trim() : null,
+        phone: String(form.get('phone') ?? '').trim() || null,
         password: 'FanMilk-Temp-2026!',
       }),
     })
@@ -517,10 +562,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
           role: editRole,
           depot_id:
             editRole === 'administrateur' ? null : Number(form.get('depot_id')),
-          phone:
-            editRole === 'revendeur'
-              ? String(form.get('phone') ?? '').trim()
-              : null,
+          phone: String(form.get('phone') ?? '').trim() || null,
           password: String(form.get('password') ?? ''),
         }),
       });
@@ -548,24 +590,32 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
     await loadDashboard(true);
     setNotice('État de la difficulté enregistré.');
   }
-  async function assignPrize() {
-    if (!prize || !Number(prizeAmount)) return;
-    await apiFetch('/api/admin/bonuses', {
-      method: 'POST',
-      body: JSON.stringify({
-        vendor_phone: prize.phone,
-        period: prize.period,
-        amount: Number(prizeAmount),
-      }),
-    });
-    invalidateApiCache();
-    await loadDashboard(true);
-    setNotice(
-      `Prime de ${Number(prizeAmount).toLocaleString('fr-FR')} FCFA attribuée à ${prize.seller}.`,
-    );
-    setPrize(null);
-    setPrizeAmount('');
+  async function assignPrize(saleId: number, seller: string) {
+    setActionError('');
+    try {
+      await apiFetch('/api/admin/bonuses', {
+        method: 'POST',
+        body: JSON.stringify({ sale_id: saleId }),
+      });
+      invalidateApiCache();
+      await loadDashboard(true);
+      setNotice(`Prime de 500 FCFA attribuée à ${seller} pour cette vente.`);
+    } catch (error) {
+      setActionError(
+        error instanceof Error ? error.message : 'Attribution impossible.',
+      );
+    }
   }
+
+  useEffect(() => {
+    if (!notice && !actionError && !loadError) return;
+    const timer = window.setTimeout(() => {
+      setNotice('');
+      setActionError('');
+      setLoadError('');
+    }, 5_000);
+    return () => window.clearTimeout(timer);
+  }, [notice, actionError, loadError]);
   async function toggleAccount(row: Account) {
     try {
       await apiFetch(`/api/admin/users/${row.id}`, {
@@ -774,7 +824,26 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                 {adminViewMeta[activeView].description}
               </p>
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
+              {(activeView === 'donnees' || activeView === 'difficultes') && (
+                <>
+                  <Input
+                    type="date"
+                    value={dateFrom}
+                    onChange={(event) => setDateFrom(event.target.value)}
+                    className="h-10 w-auto bg-white"
+                    aria-label="Date de début"
+                  />
+                  <Input
+                    type="date"
+                    value={dateTo}
+                    min={dateFrom || undefined}
+                    onChange={(event) => setDateTo(event.target.value)}
+                    className="h-10 w-auto bg-white"
+                    aria-label="Date de fin"
+                  />
+                </>
+              )}
               <select
                 value={selectedMonth}
                 onChange={(event) => setSelectedMonth(event.target.value)}
@@ -910,6 +979,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                           <TableHead>Revendeur</TableHead>
                           <TableHead>Dépôt</TableHead>
                           <TableHead>Détail</TableHead>
+                          <TableHead>Date</TableHead>
                           <TableHead>Statut</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -923,6 +993,9 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                             <TableCell>{row.seller}</TableCell>
                             <TableCell>{row.depot}</TableCell>
                             <TableCell>{row.detail}</TableCell>
+                            <TableCell>
+                              {new Date(row.date).toLocaleString('fr-FR')}
+                            </TableCell>
                             <TableCell>
                               <Badge
                                 variant="outline"
@@ -1027,14 +1100,16 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                         </select>
                       </div>
                     )}
-                    {accountRole === 'revendeur' && (
+                    {(
                       <div>
-                        <Label>Téléphone WhatsApp du revendeur *</Label>
+                        <Label>
+                          Téléphone WhatsApp {accountRole === 'revendeur' ? '*' : '(pour les alertes)'}
+                        </Label>
                         <Input
                           name="phone"
                           type="tel"
                           inputMode="tel"
-                          required
+                          required={accountRole === 'revendeur'}
                           placeholder="228XXXXXXXX"
                           className="mt-2 bg-white"
                         />
@@ -1213,8 +1288,8 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
               <CardHeader>
                 <CardTitle>Performances et attribution des primes</CardTitle>
                 <CardDescription>
-                  Règle proposée : score ≥ 80 et CA supérieur à la moyenne du
-                  dépôt
+                  Règle : chaque vente validée dépassant 18 000 FCFA donne droit
+                  à une prime fixe de 500 FCFA. Aucun cumul mensuel.
                 </CardDescription>
               </CardHeader>
               <CardContent className="overflow-x-auto">
@@ -1257,27 +1332,52 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                           </small>
                         </TableCell>
                         <TableCell>
-                          <span className="text-emerald-700">
-                            {row.validated} validée(s)
-                          </span>
-                          <small className="block text-slate-400">
-                            {row.rejected} rejetée(s) · {row.pending} en attente
-                          </small>
+                          <div className="min-w-52 space-y-2">
+                            {row.dailySales.map((sale) => (
+                              <div
+                                key={sale.id}
+                                className="rounded-lg border bg-slate-50 px-2 py-1.5 text-xs"
+                              >
+                                <strong>
+                                  {new Date(`${sale.date}T00:00:00`).toLocaleDateString('fr-FR')}
+                                </strong>{' '}
+                                · {sale.amount.toLocaleString('fr-FR')} FCFA
+                                <span className="block text-slate-500">
+                                  {sale.bonusAwarded
+                                    ? 'Prime de 500 FCFA attribuée'
+                                    : sale.eligible
+                                      ? 'Éligible à 500 FCFA'
+                                      : 'Seuil non atteint'}
+                                </span>
+                              </div>
+                            ))}
+                            {row.dailySales.length === 0 && (
+                              <span className="text-slate-400">Aucune vente validée</span>
+                            )}
+                            <small className="block text-slate-400">
+                              {row.validated} validée(s) · {row.rejected} rejetée(s)
+                              {' · '}{row.pending} en attente
+                            </small>
+                          </div>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            size="sm"
-                            onClick={() => {
-                              setPrize(row);
-                              setPrizeAmount(
-                                row.suggested ? String(row.suggested) : '',
-                              );
-                            }}
-                            className="bg-yellow-400 text-[#082f70] hover:bg-yellow-300"
-                          >
-                            <Award />
-                            {row.eligible ? 'Attribuer' : 'Décider'}
-                          </Button>
+                          <div className="flex min-w-32 flex-col items-end gap-2">
+                            {row.dailySales
+                              .filter((sale) => sale.eligible && !sale.bonusAwarded)
+                              .map((sale) => (
+                                <Button
+                                  key={sale.id}
+                                  size="sm"
+                                  onClick={() => assignPrize(sale.id, row.seller)}
+                                  className="bg-yellow-400 text-[#082f70] hover:bg-yellow-300"
+                                >
+                                  <Award /> 500 FCFA · {new Date(`${sale.date}T00:00:00`).toLocaleDateString('fr-FR')}
+                                </Button>
+                              ))}
+                            {!row.dailySales.some(
+                              (sale) => sale.eligible && !sale.bonusAwarded,
+                            ) && <span className="text-xs text-slate-400">Aucune prime à attribuer</span>}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -1347,8 +1447,36 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    {issues.map((row) => (
-                      <div key={row.id} className="rounded-2xl border p-4">
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      {[
+                        ['Ouvertes', 'ouverte', 'border-red-200 bg-red-50 text-red-800'],
+                        ['En cours', 'en_cours', 'border-amber-200 bg-amber-50 text-amber-800'],
+                        ['Résolues', 'resolue', 'border-emerald-200 bg-emerald-50 text-emerald-800'],
+                      ].map(([label, state, tone]) => (
+                        <div key={state} className={`rounded-xl border p-3 ${tone}`}>
+                          <strong className="text-2xl">
+                            {issues.filter((item) => item.state === state).length}
+                          </strong>
+                          <span className="ml-2 text-sm font-bold">{label}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {[...issues]
+                      .sort((a, b) => {
+                        const rank = { ouverte: 0, en_cours: 1, resolue: 2 };
+                        return rank[a.state] - rank[b.state];
+                      })
+                      .map((row) => (
+                      <div
+                        key={row.id}
+                        className={`rounded-2xl border p-4 ${
+                          row.state === 'resolue'
+                            ? 'border-emerald-200 bg-emerald-50/60'
+                            : row.state === 'en_cours'
+                              ? 'border-amber-200 bg-amber-50/60'
+                              : 'border-red-200 bg-red-50/60'
+                        }`}
+                      >
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <span>
                             <strong>{row.seller}</strong>
@@ -1356,7 +1484,17 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                               {row.depot}
                             </small>
                           </span>
-                          <Badge>{row.state}</Badge>
+                          <Badge
+                            className={
+                              row.state === 'resolue'
+                                ? 'bg-emerald-600 text-white'
+                                : row.state === 'en_cours'
+                                  ? 'bg-amber-500 text-white'
+                                  : 'bg-red-600 text-white'
+                            }
+                          >
+                            {row.state.replace('_', ' ')}
+                          </Badge>
                         </div>
                         <p className="mt-2 text-sm font-bold text-[#0a4ea8]">
                           {row.category}
@@ -1380,49 +1518,88 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                         </div>
                       </div>
                     ))}
+                    {!loading && issues.length === 0 && (
+                      <p className="rounded-2xl bg-slate-50 p-6 text-center text-sm text-slate-500">
+                        Aucune difficulté signalée pour cette sélection.
+                      </p>
+                    )}
                   </CardContent>
                 </Card>
               )}
               {activeView === 'donnees' && (
-                <Card className="border-0 bg-white ring-blue-950/7">
-                  <CardHeader>
-                    <CardTitle>Consultation des ventes et stocks</CardTitle>
-                    <CardDescription>
-                      Vue globale · aucune validation possible côté
-                      administrateur
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Référence</TableHead>
-                          <TableHead>Revendeur</TableHead>
-                          <TableHead>Dépôt</TableHead>
-                          <TableHead>Détail</TableHead>
-                          <TableHead>Statut</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {globalRows.map((row) => (
-                          <TableRow key={row.ref}>
-                            <TableCell>{row.type}</TableCell>
-                            <TableCell className="font-bold">
-                              {row.ref}
-                            </TableCell>
-                            <TableCell>{row.seller}</TableCell>
-                            <TableCell>{row.depot}</TableCell>
-                            <TableCell>{row.detail}</TableCell>
-                            <TableCell>
-                              <Badge variant="outline">{row.status}</Badge>
-                            </TableCell>
+                <div className="space-y-6">
+                  <Card className="border-0 bg-white ring-blue-950/7">
+                    <CardHeader>
+                      <CardTitle>Ventes Vendor‑Bot</CardTitle>
+                      <CardDescription>
+                        Date, montant et détail des produits de chaque vente.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Référence</TableHead>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Revendeur</TableHead>
+                            <TableHead>Dépôt</TableHead>
+                            <TableHead>Détail</TableHead>
+                            <TableHead>Statut</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </CardContent>
-                </Card>
+                        </TableHeader>
+                        <TableBody>
+                          {globalRows.filter((row) => row.type === 'Vente').map((row) => (
+                            <TableRow key={row.ref}>
+                              <TableCell className="font-bold">{row.ref}</TableCell>
+                              <TableCell>{new Date(row.date).toLocaleString('fr-FR')}</TableCell>
+                              <TableCell>{row.seller}</TableCell>
+                              <TableCell>{row.depot}</TableCell>
+                              <TableCell>{row.detail}</TableCell>
+                              <TableCell><Badge variant="outline">{row.status.replace('_', ' ')}</Badge></TableCell>
+                            </TableRow>
+                          ))}
+                          {!loading && !globalRows.some((row) => row.type === 'Vente') && (
+                            <TableRow><TableCell colSpan={6} className="py-8 text-center text-slate-500">Aucune vente pour cette sélection.</TableCell></TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    {productTotals.map((product) => {
+                      const image = product.sku === 'FANXTRA' ? '/fan-site/fanxtra.png' : product.sku === 'FANCHOCO' ? '/fan-site/fanchoco.jpg' : '/fan-site/fanvanille.png';
+                      return (
+                        <Card key={product.sku} className="border-0 bg-white ring-blue-950/7">
+                          <CardContent className="flex items-center gap-4 p-5">
+                            <img src={image} alt={product.name} className="size-20 rounded-xl object-contain" />
+                            <div><p className="font-black text-[#082f70]">{product.name}</p><p className="text-3xl font-black">{product.quantity}</p><p className="text-xs text-slate-500">unités vendues au total</p></div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+
+                  <Card className="border-0 bg-white ring-blue-950/7">
+                    <CardHeader>
+                      <CardTitle>Stocks vendus par revendeur</CardTitle>
+                      <CardDescription>Répartition de FanXtra, FanChoco et FanVanille sur la période.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="overflow-x-auto">
+                      <Table>
+                        <TableHeader><TableRow><TableHead>Revendeur</TableHead><TableHead>Dépôt</TableHead><TableHead>Produit</TableHead><TableHead>Quantité vendue</TableHead></TableRow></TableHeader>
+                        <TableBody>
+                          {productBreakdown.map((row) => (
+                            <TableRow key={`${row.vendor.phone}-${row.sku}`}><TableCell className="font-bold">{row.vendor.name}</TableCell><TableCell>{row.depot}</TableCell><TableCell>{row.product}</TableCell><TableCell>{row.quantity}</TableCell></TableRow>
+                          ))}
+                          {!loading && productBreakdown.length === 0 && (
+                            <TableRow><TableCell colSpan={4} className="py-8 text-center text-slate-500">Aucun stock vendu pour cette sélection.</TableCell></TableRow>
+                          )}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                </div>
               )}
             </section>
           )}
@@ -1498,9 +1675,11 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                     </select>
                   </div>
                 )}
-                {editRole === 'revendeur' && (
+                {(
                   <div>
-                    <Label>Téléphone WhatsApp *</Label>
+                    <Label>
+                      Téléphone WhatsApp {editRole === 'revendeur' ? '*' : '(pour les alertes)'}
+                    </Label>
                     <Input
                       name="phone"
                       defaultValue={editingAccount.phone ?? ''}
@@ -1508,7 +1687,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                         editingAccount.role === 'revendeur' &&
                         Boolean(editingAccount.phone)
                       }
-                      required
+                      required={editRole === 'revendeur'}
                       className="mt-2"
                     />
                     {editingAccount.role === 'revendeur' &&
@@ -1543,41 +1722,6 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                   </Button>
                 </div>
               </form>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-      {prize && (
-        <div className="fixed inset-0 z-[100] grid place-items-center bg-[#07162f]/65 p-5 backdrop-blur-sm">
-          <Card className="w-full max-w-lg bg-white">
-            <CardHeader>
-              <Award className="size-9 text-yellow-500" />
-              <CardTitle>Attribuer une prime à {prize.seller}</CardTitle>
-              <CardDescription>
-                {prize.period} · CA {prize.amount} FCFA · score {prize.score}
-                /100
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Label>Montant proposé (modifiable)</Label>
-              <Input
-                type="number"
-                value={prizeAmount}
-                onChange={(event) => setPrizeAmount(event.target.value)}
-                className="mt-2"
-              />
-              <p className="mt-3 rounded-xl bg-yellow-50 p-3 text-xs text-yellow-900">
-                Calcul proposé : seuil de score atteint et chiffre d’affaires
-                supérieur à la moyenne du dépôt.
-              </p>
-              <div className="mt-5 flex justify-end gap-3">
-                <Button variant="outline" onClick={() => setPrize(null)}>
-                  Annuler
-                </Button>
-                <Button onClick={assignPrize} className="bg-[#0a4ea8]">
-                  Enregistrer et notifier
-                </Button>
-              </div>
             </CardContent>
           </Card>
         </div>

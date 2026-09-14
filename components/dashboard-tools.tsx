@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Bell, BellOff, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { apiFetch, apiFetchCached, invalidateApiCache } from '@/lib/api';
 import {
   Popover,
   PopoverContent,
@@ -17,9 +18,11 @@ import {
 } from '@/components/app-preferences';
 
 export type DashboardNotification = {
+  id?: number;
   title: string;
   description: string;
   href: string;
+  priority?: 'normale' | 'urgente';
 };
 
 export function DashboardTools({
@@ -32,6 +35,9 @@ export function DashboardTools({
   notifications: DashboardNotification[];
 }) {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [serverNotifications, setServerNotifications] = useState<
+    DashboardNotification[]
+  >([]);
 
   useEffect(() => {
     const syncPreferences = () =>
@@ -47,6 +53,37 @@ export function DashboardTools({
     };
   }, []);
 
+  useEffect(() => {
+    const load = () =>
+      apiFetchCached<
+        Array<{
+          id: number;
+          title: string;
+          message: string;
+          link: string;
+          priority: 'normale' | 'urgente';
+          read: boolean;
+        }>
+      >('/api/notifications', { force: true, maxAge: 5_000 })
+        .then((rows) =>
+          setServerNotifications(
+            rows
+              .filter((row) => !row.read)
+              .map((row) => ({
+                id: row.id,
+                title: row.title,
+                description: row.message,
+                href: row.link || '#',
+                priority: row.priority,
+              })),
+          ),
+        )
+        .catch(() => undefined);
+    void load();
+    const timer = window.setInterval(load, 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   const initials = useMemo(
     () =>
       name
@@ -58,7 +95,9 @@ export function DashboardTools({
         .toUpperCase() || 'FM',
     [name],
   );
-  const visibleNotifications = notificationsEnabled ? notifications : [];
+  const visibleNotifications = notificationsEnabled
+    ? [...serverNotifications, ...notifications]
+    : [];
 
   return (
     <div className="flex items-center gap-2 sm:gap-3">
@@ -96,11 +135,24 @@ export function DashboardTools({
             {visibleNotifications.length ? (
               visibleNotifications.map((item) => (
                 <a
-                  key={`${item.href}-${item.title}`}
+                  key={`${item.id ?? item.href}-${item.title}`}
                   href={item.href}
+                  onClick={() => {
+                    if (!item.id) return;
+                    void apiFetch(`/api/notifications/${item.id}`, {
+                      method: 'PATCH',
+                    }).then(() => {
+                      invalidateApiCache();
+                      setServerNotifications((rows) =>
+                        rows.filter((row) => row.id !== item.id),
+                      );
+                    });
+                  }}
                   className="flex items-center gap-3 rounded-xl px-3 py-3 hover:bg-blue-50"
                 >
-                  <span className="size-2 shrink-0 rounded-full bg-[#0a4ea8]" />
+                  <span
+                    className={`size-2 shrink-0 rounded-full ${item.priority === 'urgente' ? 'bg-red-500' : 'bg-[#0a4ea8]'}`}
+                  />
                   <span className="min-w-0 flex-1">
                     <strong className="block text-sm text-[#082f70]">
                       {item.title}

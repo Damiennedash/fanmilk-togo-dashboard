@@ -24,6 +24,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   apiFetch,
+  apiFetchWithToken,
   clearSession,
   getStoredUser,
   getToken,
@@ -43,6 +44,10 @@ export default function ConnexionPage() {
   const [error, setError] = useState('');
   const [sessionPrompt, setSessionPrompt] = useState(false);
   const [existingUser, setExistingUser] = useState<SessionUser | null>(null);
+  const [mfaToken, setMfaToken] = useState('');
+  const [mfaCode, setMfaCode] = useState('');
+  const [mfaQrCode, setMfaQrCode] = useState('');
+  const [mfaManualKey, setMfaManualKey] = useState('');
 
   useEffect(() => {
     const checkExistingSession = () => {
@@ -67,11 +72,39 @@ export default function ConnexionPage() {
     setError('');
     try {
       const result = await apiFetch<{
-        access_token: string;
-        user: SessionUser;
+        mfa_required: boolean;
+        mfa_setup_required: boolean;
+        mfa_token: string;
+        qr_code?: string;
+        manual_key?: string;
       }>('/api/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email, password }),
+      });
+      setMfaToken(result.mfa_token);
+      setMfaQrCode(result.qr_code ?? '');
+      setMfaManualKey(result.manual_key ?? '');
+      setMfaCode('');
+    } catch (reason) {
+      setError(
+        reason instanceof Error ? reason.message : 'Connexion impossible.',
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function submitMfa(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      const result = await apiFetchWithToken<{
+        access_token: string;
+        user: SessionUser;
+      }>('/api/auth/mfa/verify', mfaToken, {
+        method: 'POST',
+        body: JSON.stringify({ code: mfaCode }),
       });
       if (result.user.role === 'revendeur')
         throw new Error(
@@ -243,6 +276,8 @@ export default function ConnexionPage() {
           </div>
           {!forgotten ? (
             <>
+              {!mfaToken ? (
+                <>
               <h2 className="text-4xl font-black tracking-tight text-[#082f70]">
                 Bienvenue
               </h2>
@@ -317,6 +352,79 @@ export default function ConnexionPage() {
                   Jeton de session sécurisé · droits vérifiés côté serveur
                 </p>
               </form>
+                </>
+              ) : (
+                <>
+                  <p className="text-xs font-black uppercase tracking-[.18em] text-[#0a4ea8]">
+                    Double authentification
+                  </p>
+                  <h2 className="mt-3 text-3xl font-black text-[#082f70]">
+                    Code Google Authenticator
+                  </h2>
+                  {mfaQrCode && (
+                    <div className="mt-5 rounded-2xl border bg-white p-4 text-center">
+                      <p className="mb-3 text-sm text-slate-600">
+                        Première connexion : scannez ce QR code avec Google
+                        Authenticator, puis saisissez le code affiché.
+                      </p>
+                      <img
+                        src={mfaQrCode}
+                        alt="QR code Google Authenticator FanMilk"
+                        className="mx-auto size-44"
+                      />
+                      <p className="mt-2 break-all text-xs text-slate-500">
+                        Clé manuelle : <strong>{mfaManualKey}</strong>
+                      </p>
+                    </div>
+                  )}
+                  {!mfaQrCode && (
+                    <p className="mt-3 text-sm text-slate-500">
+                      Ouvrez Google Authenticator et recopiez le code à six
+                      chiffres de votre compte FanMilk.
+                    </p>
+                  )}
+                  <form onSubmit={submitMfa} className="mt-6 space-y-4">
+                    <Label htmlFor="mfa-code">Code à 6 chiffres</Label>
+                    <Input
+                      id="mfa-code"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      pattern="[0-9]{6}"
+                      maxLength={6}
+                      required
+                      value={mfaCode}
+                      onChange={(event) =>
+                        setMfaCode(event.target.value.replace(/\D/g, ''))
+                      }
+                      className="h-14 text-center text-2xl font-black tracking-[.35em]"
+                    />
+                    {error && (
+                      <p className="rounded-xl bg-red-50 p-3 text-sm font-bold text-red-700">
+                        {error}
+                      </p>
+                    )}
+                    <Button
+                      type="submit"
+                      disabled={loading || mfaCode.length !== 6}
+                      className="h-12 w-full bg-[#0a4ea8]"
+                    >
+                      {loading ? 'Vérification…' : 'Vérifier et se connecter'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => {
+                        setMfaToken('');
+                        setMfaQrCode('');
+                        setMfaCode('');
+                      }}
+                      className="w-full"
+                    >
+                      Retour
+                    </Button>
+                  </form>
+                </>
+              )}
             </>
           ) : (
             <>
