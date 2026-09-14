@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import {
   AlertTriangle,
+  Activity,
   Award,
   BarChart3,
   Bell,
@@ -11,6 +12,8 @@ import {
   LogOut,
   Menu,
   Pencil,
+  FileDown,
+  Printer,
   Plus,
   RefreshCw,
   Settings,
@@ -63,6 +66,18 @@ type Account = {
   depotId: number | null;
   phone?: string;
   active: boolean;
+  mfaEnabled?: boolean;
+};
+type Analytics = {
+  current_revenue: number;
+  previous_revenue: number;
+  change_percent: number;
+  validated_sales: number;
+  pending_sales: number;
+  daily: Array<{ date: string; amount: number; sales: number }>;
+  vendor_ranking: Array<{ phone: string; name: string; depot: string; amount: number; sales: number }>;
+  depot_ranking: Array<{ id: number; name: string; amount: number; sales: number }>;
+  product_targets: Array<{ product: { id: number; sku: string; name: string }; quantity_target: number; actual_quantity: number; completion_rate: number }>;
 };
 type VendorRow = {
   phone: string;
@@ -120,6 +135,7 @@ export type AdminView =
   | 'pilotage'
   | 'comptes'
   | 'revendeurs'
+  | 'analyses'
   | 'performances'
   | 'difficultes'
   | 'donnees';
@@ -138,6 +154,10 @@ const adminViewMeta: Record<AdminView, { title: string; description: string }> =
       title: 'Liste des revendeurs',
       description:
         'Consultez tous les revendeurs enregistrés par compte ou par WhatsApp.',
+    },
+    analyses: {
+      title: 'Analyses et suivi',
+      description: 'Comparez les périodes, suivez les objectifs et contrôlez les opérations.',
     },
     performances: {
       title: 'Performances et primes',
@@ -178,6 +198,12 @@ const adminNavigation = [
     view: 'performances',
     label: 'Performances & primes',
     icon: Award,
+  },
+  {
+    href: '/dashboard/analyses',
+    view: 'analyses',
+    label: 'Analyses & audit',
+    icon: Activity,
   },
   {
     href: '/dashboard/difficultes',
@@ -237,6 +263,10 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
     open_difficulties: 0,
     awarded_bonuses: 0,
   });
+  const [analytics, setAnalytics] = useState<Analytics | null>(null);
+  const [auditRows, setAuditRows] = useState<any[]>([]);
+  const [deliveryRows, setDeliveryRows] = useState<any[]>([]);
+  const [systemStatus, setSystemStatus] = useState<any>(null);
   const [adminName, setAdminName] = useState('Administrateur');
   const [loadError, setLoadError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -336,6 +366,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
             depotId: row.depot?.id ?? null,
             phone: row.phone,
             active: row.active,
+            mfaEnabled: row.mfa_enabled,
           })),
         );
       } else if (activeView === 'revendeurs') {
@@ -355,6 +386,20 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
             lastDeclarationAt: row.last_declaration_at,
           })),
         );
+      } else if (activeView === 'analyses') {
+        const separator = selectedDepot ? '&' : '?';
+        const [nextAnalytics, nextAudit, nextDeliveries, apiDepots, nextSystem] = await Promise.all([
+          cached<Analytics>(`/api/admin/analytics${depotQuery}${separator}period=${selectedMonth}`),
+          cached<any[]>(`/api/admin/audit${filteredQuery}`),
+          cached<any[]>('/api/admin/notifications?limit=100'),
+          cached<any[]>('/api/admin/depots'),
+          cached<any>('/api/admin/system-status'),
+        ]);
+        setAnalytics(nextAnalytics);
+        setAuditRows(nextAudit);
+        setDeliveryRows(nextDeliveries);
+        setDepots(apiDepots);
+        setSystemStatus(nextSystem);
       } else if (activeView === 'performances') {
         const separator = selectedDepot ? '&' : '?';
         const [apiPerformances, apiBonuses, apiDepots] = await Promise.all([
@@ -499,6 +544,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
         '/api/admin/users',
         '/api/admin/vendors',
         `/api/admin/performances?period=${selectedMonth}`,
+        `/api/admin/analytics?period=${selectedMonth}`,
         '/api/admin/bonuses',
         '/api/admin/difficulties',
         '/api/admin/sales',
@@ -630,6 +676,64 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
         error instanceof Error ? error.message : 'Action impossible.',
       );
     }
+  }
+
+  async function resetMfa(row: Account) {
+    if (!window.confirm(`Réinitialiser Google Authenticator pour ${row.name} ?`)) return;
+    try {
+      const result = await apiFetch<{ message: string }>(`/api/admin/users/${row.id}/reset-mfa`, { method: 'POST' });
+      invalidateApiCache();
+      await loadDashboard(true);
+      setNotice(result.message);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Réinitialisation impossible.');
+    }
+  }
+
+  async function saveTarget(productId: number, quantity: number) {
+    try {
+      const rows = await apiFetch<Analytics['product_targets']>('/api/admin/targets', {
+        method: 'PUT',
+        body: JSON.stringify({
+          product_id: productId,
+          period: selectedMonth,
+          depot_id: selectedDepot ? Number(selectedDepot) : null,
+          quantity_target: quantity,
+        }),
+      });
+      setAnalytics((current) => current ? { ...current, product_targets: rows } : current);
+      invalidateApiCache();
+      setNotice('Objectif produit enregistré.');
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Enregistrement impossible.');
+    }
+  }
+
+  async function retryDelivery(id: number) {
+    try {
+      const updated = await apiFetch<any>(`/api/admin/notifications/${id}/retry`, { method: 'POST' });
+      setDeliveryRows((rows) => rows.map((row) => row.id === id ? updated : row));
+      setNotice('Nouvelle tentative de notification terminée.');
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Nouvelle tentative impossible.');
+    }
+  }
+
+  function exportAnalyticsCsv() {
+    if (!analytics) return;
+    const lines = [
+      ['Classement', 'Nom', 'Dépôt', 'Ventes', 'CA FCFA'],
+      ...analytics.vendor_ranking.map((row, index) => [index + 1, row.name, row.depot, row.sales, row.amount]),
+      [],
+      ['Date', 'Nombre de ventes', 'CA FCFA'],
+      ...analytics.daily.map((row) => [row.date, row.sales, row.amount]),
+    ];
+    const csv = lines.map((line) => line.map((cell) => `"${String(cell ?? '').replaceAll('"', '""')}"`).join(';')).join('\n');
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }));
+    link.download = `fanmilk-analyses-${selectedMonth}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
   }
 
   return (
@@ -825,7 +929,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
-              {(activeView === 'donnees' || activeView === 'difficultes') && (
+              {(activeView === 'donnees' || activeView === 'difficultes' || activeView === 'analyses') && (
                 <>
                   <Input
                     type="date"
@@ -1182,6 +1286,16 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                               >
                                 <Pencil /> Modifier
                               </Button>
+                              {row.role !== 'revendeur' && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => resetMfa(row)}
+                                  title="Réinitialiser Google Authenticator"
+                                >
+                                  MFA
+                                </Button>
+                              )}
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -1281,6 +1395,50 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                 </Table>
               </CardContent>
             </Card>
+          )}
+
+          {activeView === 'analyses' && analytics && (
+            <div className="mt-6 space-y-6">
+              {systemStatus && (!systemStatus.email_configured || !systemStatus.whatsapp_configured) && (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                  <strong>Canaux à configurer :</strong>{' '}
+                  {!systemStatus.email_configured && 'e-mail Resend '}
+                  {!systemStatus.whatsapp_configured && 'WhatsApp '}
+                  — les alertes restent enregistrées dans l’application et pourront être renvoyées.
+                </div>
+              )}
+              <div className="flex flex-wrap gap-2 print:hidden">
+                <Button variant="outline" onClick={exportAnalyticsCsv}><FileDown /> Exporter Excel (CSV)</Button>
+                <Button variant="outline" onClick={() => window.print()}><Printer /> Imprimer / PDF</Button>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                {[
+                  ['CA de la période', analytics.current_revenue.toLocaleString('fr-FR') + ' FCFA'],
+                  ['Période précédente', analytics.previous_revenue.toLocaleString('fr-FR') + ' FCFA'],
+                  ['Évolution', `${analytics.change_percent > 0 ? '+' : ''}${analytics.change_percent}%`],
+                  ['Ventes validées / en attente', `${analytics.validated_sales} / ${analytics.pending_sales}`],
+                ].map(([label, value]) => (
+                  <Card key={label} className="border-0 bg-white ring-blue-950/7"><CardContent className="p-5"><p className="text-xs font-bold text-slate-500">{label}</p><p className="mt-2 text-2xl font-black text-[#082f70]">{value}</p></CardContent></Card>
+                ))}
+              </div>
+              <Card className="border-0 bg-white ring-blue-950/7">
+                <CardHeader><CardTitle>Ventes validées par jour</CardTitle><CardDescription>Chaque barre représente le chiffre d’affaires quotidien.</CardDescription></CardHeader>
+                <CardContent className="space-y-3">
+                  {analytics.daily.map((row) => {
+                    const maximum = Math.max(...analytics.daily.map((item) => item.amount), 1);
+                    return <div key={row.date} className="grid grid-cols-[88px_1fr_120px] items-center gap-3 text-xs"><span>{new Date(`${row.date}T12:00:00`).toLocaleDateString('fr-FR')}</span><div className="h-7 overflow-hidden rounded-lg bg-blue-50"><div className="h-full rounded-lg bg-[#0a4ea8]" style={{ width: `${Math.max(row.amount * 100 / maximum, 2)}%` }} /></div><strong className="text-right">{row.amount.toLocaleString('fr-FR')} FCFA</strong></div>;
+                  })}
+                  {analytics.daily.length === 0 && <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Aucune vente validée sur cette période.</p>}
+                </CardContent>
+              </Card>
+              <div className="grid gap-6 xl:grid-cols-2">
+                <Card className="border-0 bg-white ring-blue-950/7"><CardHeader><CardTitle>Classement des revendeurs</CardTitle></CardHeader><CardContent className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>#</TableHead><TableHead>Revendeur</TableHead><TableHead>Dépôt</TableHead><TableHead>Ventes</TableHead><TableHead>CA</TableHead></TableRow></TableHeader><TableBody>{analytics.vendor_ranking.map((row, index) => <TableRow key={row.phone}><TableCell>{index + 1}</TableCell><TableCell className="font-bold">{row.name}</TableCell><TableCell>{row.depot}</TableCell><TableCell>{row.sales}</TableCell><TableCell>{row.amount.toLocaleString('fr-FR')} FCFA</TableCell></TableRow>)}{analytics.vendor_ranking.length === 0 && <TableRow><TableCell colSpan={5} className="py-8 text-center text-slate-500">Aucun résultat.</TableCell></TableRow>}</TableBody></Table></CardContent></Card>
+                <Card className="border-0 bg-white ring-blue-950/7"><CardHeader><CardTitle>Classement des dépôts</CardTitle></CardHeader><CardContent className="space-y-3">{analytics.depot_ranking.map((row, index) => <div key={row.id} className="flex items-center justify-between rounded-xl bg-blue-50/60 p-3"><span><strong>{index + 1}. {row.name}</strong><small className="block text-slate-500">{row.sales} vente(s)</small></span><strong>{row.amount.toLocaleString('fr-FR')} FCFA</strong></div>)}{analytics.depot_ranking.length === 0 && <p className="text-sm text-slate-500">Aucun résultat.</p>}</CardContent></Card>
+              </div>
+              <Card className="border-0 bg-white ring-blue-950/7"><CardHeader><CardTitle>Objectifs par produit</CardTitle><CardDescription>Objectifs nationaux ou du dépôt sélectionné pour {selectedMonth}.</CardDescription></CardHeader><CardContent className="grid gap-4 lg:grid-cols-3">{analytics.product_targets.map((row) => <form key={row.product.id} onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); void saveTarget(row.product.id, Number(form.get('target'))); }} className="rounded-2xl border p-4"><strong>{row.product.name}</strong><p className="mt-1 text-sm text-slate-500">Réalisé : {row.actual_quantity} · {row.completion_rate}%</p><div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full bg-emerald-500" style={{ width: `${Math.min(row.completion_rate, 100)}%` }} /></div><div className="mt-4 flex gap-2"><Input name="target" type="number" min="0" defaultValue={row.quantity_target} aria-label={`Objectif ${row.product.name}`} /><Button type="submit" size="sm">Enregistrer</Button></div></form>)}</CardContent></Card>
+              <Card className="border-0 bg-white ring-blue-950/7"><CardHeader><CardTitle>Livraison des notifications</CardTitle><CardDescription>Historique e-mail, WhatsApp et nouvelles tentatives.</CardDescription></CardHeader><CardContent className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Destinataire</TableHead><TableHead>Alerte</TableHead><TableHead>E-mail</TableHead><TableHead>WhatsApp</TableHead><TableHead>Action</TableHead></TableRow></TableHeader><TableBody>{deliveryRows.map((row) => <TableRow key={row.id}><TableCell>{new Date(row.created_at).toLocaleString('fr-FR')}</TableCell><TableCell>{row.recipient?.name ?? '—'}</TableCell><TableCell>{row.title}</TableCell><TableCell><Badge variant="outline">{row.email_status}</Badge></TableCell><TableCell><Badge variant="outline">{row.whatsapp_status}</Badge></TableCell><TableCell><Button size="sm" variant="outline" onClick={() => retryDelivery(row.id)}>Réessayer</Button></TableCell></TableRow>)}{deliveryRows.length === 0 && <TableRow><TableCell colSpan={6} className="py-8 text-center text-slate-500">Aucune notification envoyée.</TableCell></TableRow>}</TableBody></Table></CardContent></Card>
+              <Card className="border-0 bg-white ring-blue-950/7"><CardHeader><CardTitle>Journal d’audit</CardTitle><CardDescription>Traçabilité des validations, rejets, modifications, suspensions et primes.</CardDescription></CardHeader><CardContent className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Responsable</TableHead><TableHead>Action</TableHead><TableHead>Élément</TableHead><TableHead>Détail</TableHead></TableRow></TableHeader><TableBody>{auditRows.map((row) => <TableRow key={row.id}><TableCell>{new Date(row.created_at).toLocaleString('fr-FR')}</TableCell><TableCell>{row.actor?.name ?? 'Système'}</TableCell><TableCell><Badge variant="outline">{String(row.action).replaceAll('_', ' ')}</Badge></TableCell><TableCell>{row.entity_type} #{row.entity_id}</TableCell><TableCell>{row.description}</TableCell></TableRow>)}{auditRows.length === 0 && <TableRow><TableCell colSpan={5} className="py-8 text-center text-slate-500">Aucune opération enregistrée pour ces dates.</TableCell></TableRow>}</TableBody></Table></CardContent></Card>
+            </div>
           )}
 
           {activeView === 'performances' && (

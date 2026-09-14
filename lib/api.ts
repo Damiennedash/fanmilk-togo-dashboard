@@ -84,7 +84,7 @@ export async function apiFetch<T>(
       }
     }
     throw new Error(
-      body.error ?? body.msg ?? 'Le serveur ne répond pas correctement.',
+      body.error ?? body.msg ?? 'Impossible de charger les données pour le moment.',
     );
   }
   return body as T;

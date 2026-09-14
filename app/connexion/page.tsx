@@ -48,6 +48,8 @@ export default function ConnexionPage() {
   const [mfaCode, setMfaCode] = useState('');
   const [mfaQrCode, setMfaQrCode] = useState('');
   const [mfaManualKey, setMfaManualKey] = useState('');
+  const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
+  const [loginDestination, setLoginDestination] = useState('/dashboard');
 
   useEffect(() => {
     const checkExistingSession = () => {
@@ -102,6 +104,7 @@ export default function ConnexionPage() {
       const result = await apiFetchWithToken<{
         access_token: string;
         user: SessionUser;
+        recovery_codes?: string[];
       }>('/api/auth/mfa/verify', mfaToken, {
         method: 'POST',
         body: JSON.stringify({ code: mfaCode }),
@@ -120,11 +123,13 @@ export default function ConnexionPage() {
           requestedPath?.startsWith('/depositaire')) ||
         (result.user.role === 'administrateur' &&
           requestedPath?.startsWith('/dashboard'));
-      window.location.replace(
-        allowedReturn && requestedPath
-          ? requestedPath
-          : userHome(result.user),
-      );
+      const destination = allowedReturn && requestedPath ? requestedPath : userHome(result.user);
+      if (result.recovery_codes?.length) {
+        setRecoveryCodes(result.recovery_codes);
+        setLoginDestination(destination);
+      } else {
+        window.location.replace(destination);
+      }
     } catch (reason) {
       setError(
         reason instanceof Error ? reason.message : 'Connexion impossible.',
@@ -276,7 +281,20 @@ export default function ConnexionPage() {
           </div>
           {!forgotten ? (
             <>
-              {!mfaToken ? (
+              {recoveryCodes.length > 0 ? (
+                <>
+                  <p className="text-xs font-black uppercase tracking-[.18em] text-[#0a4ea8]">Sécurité du compte</p>
+                  <h2 className="mt-3 text-3xl font-black text-[#082f70]">Conservez vos codes de secours</h2>
+                  <p className="mt-3 text-sm leading-6 text-slate-500">Chaque code permet une seule connexion si vous perdez l’accès à Google Authenticator. Ils ne seront plus affichés.</p>
+                  <div className="mt-5 grid grid-cols-2 gap-2 rounded-2xl border bg-white p-4 font-mono text-sm font-bold">
+                    {recoveryCodes.map((code) => <span key={code} className="rounded-lg bg-blue-50 p-2 text-center">{code}</span>)}
+                  </div>
+                  <div className="mt-5 grid gap-3">
+                    <Button type="button" variant="outline" onClick={() => navigator.clipboard.writeText(recoveryCodes.join('\n'))}>Copier les codes</Button>
+                    <Button type="button" className="bg-[#0a4ea8]" onClick={() => window.location.replace(loginDestination)}>J’ai sauvegardé mes codes</Button>
+                  </div>
+                </>
+              ) : !mfaToken ? (
                 <>
               <h2 className="text-4xl font-black tracking-tight text-[#082f70]">
                 Bienvenue
@@ -384,17 +402,17 @@ export default function ConnexionPage() {
                     </p>
                   )}
                   <form onSubmit={submitMfa} className="mt-6 space-y-4">
-                    <Label htmlFor="mfa-code">Code à 6 chiffres</Label>
+                    <Label htmlFor="mfa-code">Code Authenticator à 6 chiffres ou code de secours</Label>
                     <Input
                       id="mfa-code"
-                      inputMode="numeric"
+                      inputMode="text"
                       autoComplete="one-time-code"
-                      pattern="[0-9]{6}"
-                      maxLength={6}
+                      pattern="([0-9]{6}|[A-Fa-f0-9]{8})"
+                      maxLength={8}
                       required
                       value={mfaCode}
                       onChange={(event) =>
-                        setMfaCode(event.target.value.replace(/\D/g, ''))
+                        setMfaCode(event.target.value.replace(/[^A-Fa-f0-9]/g, '').toUpperCase())
                       }
                       className="h-14 text-center text-2xl font-black tracking-[.35em]"
                     />
@@ -405,7 +423,7 @@ export default function ConnexionPage() {
                     )}
                     <Button
                       type="submit"
-                      disabled={loading || mfaCode.length !== 6}
+                      disabled={loading || ![6, 8].includes(mfaCode.length)}
                       className="h-12 w-full bg-[#0a4ea8]"
                     >
                       {loading ? 'Vérification…' : 'Vérifier et se connecter'}
