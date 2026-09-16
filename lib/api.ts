@@ -1,6 +1,6 @@
 const API_URL =
   process.env.NEXT_PUBLIC_VENDOR_API_URL ??
-  'https://vendor-bot-final.onrender.com';
+  '';
 
 const responseCache = new Map<string, { expiresAt: number; value: unknown }>();
 const pendingRequests = new Map<string, Promise<unknown>>();
