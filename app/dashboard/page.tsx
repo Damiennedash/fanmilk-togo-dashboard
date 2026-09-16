@@ -277,6 +277,8 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
   const [selectedDepot, setSelectedDepot] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [difficultyDay, setDifficultyDay] = useState('');
+  const [difficultyStatus, setDifficultyStatus] = useState<Issue['state'] | ''>('');
   const todayLabel = new Intl.DateTimeFormat('fr-FR', {
     weekday: 'long',
     day: 'numeric',
@@ -447,8 +449,21 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
           })),
         );
       } else if (activeView === 'difficultes') {
+        const difficultyParams = new URLSearchParams();
+        if (selectedDepot) difficultyParams.set('depot_id', selectedDepot);
+        if (difficultyDay) {
+          difficultyParams.set('date_from', difficultyDay);
+          difficultyParams.set('date_to', difficultyDay);
+        } else {
+          const [year, month] = selectedMonth.split('-').map(Number);
+          const lastDay = new Date(Date.UTC(year, month, 0))
+            .toISOString()
+            .slice(0, 10);
+          difficultyParams.set('date_from', `${selectedMonth}-01`);
+          difficultyParams.set('date_to', lastDay);
+        }
         const [apiIssues, apiDepots] = await Promise.all([
-          cached<any[]>(`/api/admin/difficulties${filteredQuery}`),
+          cached<any[]>(`/api/admin/difficulties?${difficultyParams.toString()}`),
           cached<any[]>('/api/admin/depots'),
         ]);
         setDepots(apiDepots);
@@ -523,7 +538,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
     loadDashboard();
     const refreshTimer = window.setInterval(() => loadDashboard(true), 30000);
     return () => window.clearInterval(refreshTimer);
-  }, [activeView, selectedMonth, selectedDepot, dateFrom, dateTo]);
+  }, [activeView, selectedMonth, selectedDepot, dateFrom, dateTo, difficultyDay]);
 
   useEffect(() => {
     const syncViewWithUrl = () => {
@@ -736,6 +751,10 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
     URL.revokeObjectURL(link.href);
   }
 
+  const visibleIssues = difficultyStatus
+    ? issues.filter((item) => item.state === difficultyStatus)
+    : issues;
+
   return (
     <main className="dashboard-shell min-h-screen bg-[#f3f7fb] text-[#122043] transition-colors lg:grid lg:grid-cols-[250px_1fr]">
       <aside className="hidden min-h-screen flex-col bg-[#073b86] px-4 py-5 text-white lg:flex">
@@ -929,7 +948,21 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
-              {(activeView === 'donnees' || activeView === 'difficultes' || activeView === 'analyses') && (
+              {activeView === 'difficultes' && (
+                <Input
+                  type="date"
+                  value={difficultyDay}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setDifficultyDay(value);
+                    if (value) setSelectedMonth(value.slice(0, 7));
+                  }}
+                  className="h-10 w-auto bg-white"
+                  aria-label="Jour"
+                  title="Filtrer sur un jour précis"
+                />
+              )}
+              {(activeView === 'donnees' || activeView === 'analyses') && (
                 <>
                   <Input
                     type="date"
@@ -950,7 +983,10 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
               )}
               <select
                 value={selectedMonth}
-                onChange={(event) => setSelectedMonth(event.target.value)}
+                onChange={(event) => {
+                  setSelectedMonth(event.target.value);
+                  if (activeView === 'difficultes') setDifficultyDay('');
+                }}
                 className="h-10 rounded-xl border bg-white px-3 text-sm font-bold"
                 aria-label="Période"
               >
@@ -1611,15 +1647,43 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                         ['En cours', 'en_cours', 'border-amber-200 bg-amber-50 text-amber-800'],
                         ['Résolues', 'resolue', 'border-emerald-200 bg-emerald-50 text-emerald-800'],
                       ].map(([label, state, tone]) => (
-                        <div key={state} className={`rounded-xl border p-3 ${tone}`}>
+                        <button
+                          key={state}
+                          type="button"
+                          onClick={() =>
+                            setDifficultyStatus((current) =>
+                              current === state ? '' : (state as Issue['state']),
+                            )
+                          }
+                          aria-pressed={difficultyStatus === state}
+                          className={`rounded-xl border p-3 text-left transition hover:-translate-y-0.5 hover:shadow-sm ${tone} ${
+                            difficultyStatus === state
+                              ? 'ring-2 ring-[#0a4ea8] ring-offset-2'
+                              : ''
+                          }`}
+                        >
                           <strong className="text-2xl">
                             {issues.filter((item) => item.state === state).length}
                           </strong>
                           <span className="ml-2 text-sm font-bold">{label}</span>
-                        </div>
+                        </button>
                       ))}
                     </div>
-                    {[...issues]
+                    {difficultyStatus && (
+                      <div className="flex items-center justify-between rounded-xl bg-blue-50 px-4 py-2 text-sm text-blue-900">
+                        <span>
+                          Filtre actif : <strong>{difficultyStatus.replace('_', ' ')}</strong>
+                        </span>
+                        <button
+                          type="button"
+                          className="font-bold underline underline-offset-2"
+                          onClick={() => setDifficultyStatus('')}
+                        >
+                          Afficher toutes
+                        </button>
+                      </div>
+                    )}
+                    {[...visibleIssues]
                       .sort((a, b) => {
                         const rank = { ouverte: 0, en_cours: 1, resolue: 2 };
                         return rank[a.state] - rank[b.state];
@@ -1676,9 +1740,11 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                         </div>
                       </div>
                     ))}
-                    {!loading && issues.length === 0 && (
+                    {!loading && visibleIssues.length === 0 && (
                       <p className="rounded-2xl bg-slate-50 p-6 text-center text-sm text-slate-500">
-                        Aucune difficulté signalée pour cette sélection.
+                        {difficultyStatus
+                          ? `Aucune difficulté ${difficultyStatus.replace('_', ' ')} pour cette sélection.`
+                          : 'Aucune difficulté signalée pour cette sélection.'}
                       </p>
                     )}
                   </CardContent>
