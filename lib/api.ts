@@ -1,6 +1,7 @@
 const API_URL =
-  process.env.NEXT_PUBLIC_VENDOR_API_URL ??
-  '';
+  process.env.NODE_ENV === 'development'
+    ? (process.env.NEXT_PUBLIC_VENDOR_API_URL ?? 'http://localhost:5000')
+    : '';
 
 const responseCache = new Map<string, { expiresAt: number; value: unknown }>();
 const pendingRequests = new Map<string, Promise<unknown>>();
