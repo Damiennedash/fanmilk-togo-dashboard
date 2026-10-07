@@ -28,6 +28,7 @@ async function proxyRequest(request: Request, context: RouteContext) {
           ? undefined
           : await request.arrayBuffer(),
       redirect: 'manual',
+      signal: AbortSignal.timeout(15_000),
     });
 
     const responseHeaders = new Headers();

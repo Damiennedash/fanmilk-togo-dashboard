@@ -6,6 +6,33 @@ const API_URL =
 const responseCache = new Map<string, { expiresAt: number; value: unknown }>();
 const pendingRequests = new Map<string, Promise<unknown>>();
 const CACHE_PREFIX = 'fanmilk_api_cache:';
+const REQUEST_TIMEOUT_MS = 15_000;
+
+async function fetchWithTimeout(
+  input: RequestInfo | URL,
+  options: RequestInit,
+) {
+  const controller = new AbortController();
+  const timeout = setTimeout(
+    () => controller.abort('timeout'),
+    REQUEST_TIMEOUT_MS,
+  );
+  const abortFromCaller = () => controller.abort(options.signal?.reason);
+  options.signal?.addEventListener('abort', abortFromCaller, { once: true });
+  try {
+    return await fetch(input, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (controller.signal.aborted && !options.signal?.aborted) {
+      throw new Error(
+        'Le serveur met trop de temps à répondre. Réessayez dans quelques secondes.',
+      );
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+    options.signal?.removeEventListener('abort', abortFromCaller);
+  }
+}
 
 function clearStoredApiCache() {
   if (typeof window === 'undefined') return;
@@ -67,7 +94,7 @@ export async function apiFetch<T>(
   if (!headers.has('Content-Type'))
     headers.set('Content-Type', 'application/json');
   if (token) headers.set('Authorization', `Bearer ${token}`);
-  const response = await fetch(`${API_URL}${path}`, {
+  const response = await fetchWithTimeout(`${API_URL}${path}`, {
     ...options,
     headers,
   });
@@ -99,7 +126,10 @@ export async function apiFetchWithToken<T>(
   const headers = new Headers(options.headers);
   headers.set('Content-Type', 'application/json');
   headers.set('Authorization', `Bearer ${token}`);
-  const response = await fetch(`${API_URL}${path}`, { ...options, headers });
+  const response = await fetchWithTimeout(`${API_URL}${path}`, {
+    ...options,
+    headers,
+  });
   const body = (await response.json().catch(() => ({}))) as {
     error?: string;
     msg?: string;

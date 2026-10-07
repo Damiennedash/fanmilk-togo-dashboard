@@ -6,6 +6,7 @@ import {
   BarChart3,
   Boxes,
   Check,
+  LoaderCircle,
   LogOut,
   MapPin,
   Menu,
@@ -205,6 +206,7 @@ export function DepositaireDashboard({
     }>
   >([]);
   const [loadError, setLoadError] = useState('');
+  const [busyAction, setBusyAction] = useState<string | null>(null);
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(
     `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`,
@@ -375,59 +377,122 @@ export function DepositaireDashboard({
     return () => window.removeEventListener('popstate', syncViewWithUrl);
   }, []);
 
-  useEffect(() => {
-    if (!getToken()) return;
-    const prefetchTimer = window.setTimeout(() => {
-      const paths = [
-        '/api/depositaire/summary',
-        '/api/depositaire/sales?status=en_attente',
-        '/api/depositaire/stocks?status=en_attente',
-        '/api/depositaire/performances',
-        '/api/depositaire/bonuses',
-        '/api/depositaire/difficulties',
-        '/api/depositaire/history',
-      ];
-      void Promise.allSettled(
-        paths.map((path) => apiFetchCached(path, { maxAge: 300_000 })),
-      );
-    }, 250);
-    return () => window.clearTimeout(prefetchTimer);
-  }, []);
-
   async function validateSale(id: number) {
-    await apiFetch(`/api/depositaire/sales/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ action: 'validate' }),
-    });
-    invalidateApiCache();
-    await loadDashboard(true);
-    setNotice(`Vente #${id} validée et notification transmise à Vendor‑Bot.`);
+    const previousSales = sales;
+    setBusyAction(`sale-${id}`);
+    setSales((current) => current.filter((sale) => sale.id !== id));
+    setSummary((current) => ({
+      ...current,
+      pending_sales: Math.max(0, current.pending_sales - 1),
+    }));
+    setNotice(`Validation de la vente #${id} en cours…`);
+    try {
+      await apiFetch(`/api/depositaire/sales/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ action: 'validate' }),
+      });
+      invalidateApiCache();
+      setNotice(`Vente #${id} validée et notification transmise à Vendor‑Bot.`);
+      void loadDashboard(true);
+    } catch (error) {
+      setSales(previousSales);
+      setSummary((current) => ({
+        ...current,
+        pending_sales: current.pending_sales + 1,
+      }));
+      setLoadError(
+        error instanceof Error ? error.message : 'Validation impossible.',
+      );
+    } finally {
+      setBusyAction(null);
+    }
   }
   async function validateStock(id: number) {
-    await apiFetch(`/api/depositaire/stocks/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ action: 'validate' }),
-    });
-    invalidateApiCache();
-    await loadDashboard(true);
-    setNotice(`Stock #${id} validé et notification transmise à Vendor‑Bot.`);
+    const previousStocks = stocks;
+    setBusyAction(`stock-${id}`);
+    setStocks((current) => current.filter((stock) => stock.id !== id));
+    setSummary((current) => ({
+      ...current,
+      pending_stocks: Math.max(0, current.pending_stocks - 1),
+    }));
+    setNotice(`Validation du stock #${id} en cours…`);
+    try {
+      await apiFetch(`/api/depositaire/stocks/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ action: 'validate' }),
+      });
+      invalidateApiCache();
+      setNotice(`Stock #${id} validé et notification transmise à Vendor‑Bot.`);
+      void loadDashboard(true);
+    } catch (error) {
+      setStocks(previousStocks);
+      setSummary((current) => ({
+        ...current,
+        pending_stocks: current.pending_stocks + 1,
+      }));
+      setLoadError(
+        error instanceof Error ? error.message : 'Validation impossible.',
+      );
+    } finally {
+      setBusyAction(null);
+    }
   }
   async function confirmReject() {
     if (!rejecting || !reason.trim()) return;
-    await apiFetch(
-      `/api/depositaire/${rejecting.type === 'sale' ? 'sales' : 'stocks'}/${rejecting.id}`,
-      {
-        method: 'PATCH',
-        body: JSON.stringify({ action: 'reject', reason: reason.trim() }),
-      },
-    );
-    invalidateApiCache();
-    await loadDashboard(true);
-    setNotice(
-      `${rejecting.type === 'sale' ? 'Vente' : 'Stock'} #${rejecting.id} rejeté. Motif transmis via Vendor‑Bot.`,
-    );
+    const target = rejecting;
+    const previousSales = sales;
+    const previousStocks = stocks;
+    setBusyAction(`${target.type}-${target.id}`);
+    if (target.type === 'sale') {
+      setSales((current) => current.filter((sale) => sale.id !== target.id));
+      setSummary((current) => ({
+        ...current,
+        pending_sales: Math.max(0, current.pending_sales - 1),
+      }));
+    } else {
+      setStocks((current) => current.filter((stock) => stock.id !== target.id));
+      setSummary((current) => ({
+        ...current,
+        pending_stocks: Math.max(0, current.pending_stocks - 1),
+      }));
+    }
     setRejecting(null);
-    setReason('');
+    setNotice(
+      `Rejet ${target.type === 'sale' ? 'de la vente' : 'du stock'} #${target.id} en cours…`,
+    );
+    try {
+      await apiFetch(
+        `/api/depositaire/${target.type === 'sale' ? 'sales' : 'stocks'}/${target.id}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({ action: 'reject', reason: reason.trim() }),
+        },
+      );
+      invalidateApiCache();
+      setNotice(
+        `${target.type === 'sale' ? 'Vente' : 'Stock'} #${target.id} rejeté. Motif transmis via Vendor‑Bot.`,
+      );
+      setReason('');
+      void loadDashboard(true);
+    } catch (error) {
+      setSales(previousSales);
+      setStocks(previousStocks);
+      setSummary((current) => ({
+        ...current,
+        pending_sales:
+          target.type === 'sale'
+            ? current.pending_sales + 1
+            : current.pending_sales,
+        pending_stocks:
+          target.type === 'stock'
+            ? current.pending_stocks + 1
+            : current.pending_stocks,
+      }));
+      setRejecting(target);
+      setLoadError(error instanceof Error ? error.message : 'Rejet impossible.');
+    } finally {
+      setBusyAction(null);
+    }
   }
 
   return (
@@ -750,14 +815,22 @@ export function DepositaireDashboard({
                           <div className="flex justify-end gap-2">
                             <Button
                               size="sm"
+                              disabled={busyAction !== null}
                               onClick={() => validateSale(row.id)}
                               className="bg-emerald-600 hover:bg-emerald-700"
                             >
-                              <Check />
-                              Valider
+                              {busyAction === `sale-${row.id}` ? (
+                                <LoaderCircle className="animate-spin" />
+                              ) : (
+                                <Check />
+                              )}
+                              {busyAction === `sale-${row.id}`
+                                ? 'Validation…'
+                                : 'Valider'}
                             </Button>
                             <Button
                               size="sm"
+                              disabled={busyAction !== null}
                               variant="outline"
                               onClick={() => {
                                 setRejecting({ type: 'sale', id: row.id });
@@ -858,14 +931,22 @@ export function DepositaireDashboard({
                           <div className="flex justify-end gap-2">
                             <Button
                               size="sm"
+                              disabled={busyAction !== null}
                               onClick={() => validateStock(row.id)}
                               className="bg-emerald-600 hover:bg-emerald-700"
                             >
-                              <Check />
-                              Valider
+                              {busyAction === `stock-${row.id}` ? (
+                                <LoaderCircle className="animate-spin" />
+                              ) : (
+                                <Check />
+                              )}
+                              {busyAction === `stock-${row.id}`
+                                ? 'Validation…'
+                                : 'Valider'}
                             </Button>
                             <Button
                               size="sm"
+                              disabled={busyAction !== null}
                               variant="outline"
                               onClick={() => {
                                 setRejecting({ type: 'stock', id: row.id });
@@ -1115,7 +1196,7 @@ export function DepositaireDashboard({
                   Annuler
                 </Button>
                 <Button
-                  disabled={!reason.trim()}
+                  disabled={!reason.trim() || busyAction !== null}
                   onClick={confirmReject}
                   className="bg-red-600 hover:bg-red-700"
                 >
