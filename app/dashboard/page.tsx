@@ -278,6 +278,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [difficultyDay, setDifficultyDay] = useState('');
+  const [difficultyMonth, setDifficultyMonth] = useState('');
   const [difficultyStatus, setDifficultyStatus] = useState<Issue['state'] | ''>('');
   const todayLabel = new Intl.DateTimeFormat('fr-FR', {
     weekday: 'long',
@@ -454,12 +455,12 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
         if (difficultyDay) {
           difficultyParams.set('date_from', difficultyDay);
           difficultyParams.set('date_to', difficultyDay);
-        } else {
-          const [year, month] = selectedMonth.split('-').map(Number);
+        } else if (difficultyMonth) {
+          const [year, month] = difficultyMonth.split('-').map(Number);
           const lastDay = new Date(Date.UTC(year, month, 0))
             .toISOString()
             .slice(0, 10);
-          difficultyParams.set('date_from', `${selectedMonth}-01`);
+          difficultyParams.set('date_from', `${difficultyMonth}-01`);
           difficultyParams.set('date_to', lastDay);
         }
         const [apiIssues, apiDepots] = await Promise.all([
@@ -538,7 +539,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
     loadDashboard();
     const refreshTimer = window.setInterval(() => loadDashboard(true), 30000);
     return () => window.clearInterval(refreshTimer);
-  }, [activeView, selectedMonth, selectedDepot, dateFrom, dateTo, difficultyDay]);
+  }, [activeView, selectedMonth, selectedDepot, dateFrom, dateTo, difficultyDay, difficultyMonth]);
 
   useEffect(() => {
     const syncViewWithUrl = () => {
@@ -955,7 +956,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                   onChange={(event) => {
                     const value = event.target.value;
                     setDifficultyDay(value);
-                    if (value) setSelectedMonth(value.slice(0, 7));
+                    if (value) setDifficultyMonth(value.slice(0, 7));
                   }}
                   className="h-10 w-auto bg-white"
                   aria-label="Jour"
@@ -982,14 +983,21 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                 </>
               )}
               <select
-                value={selectedMonth}
+                value={activeView === 'difficultes' ? difficultyMonth : selectedMonth}
                 onChange={(event) => {
-                  setSelectedMonth(event.target.value);
-                  if (activeView === 'difficultes') setDifficultyDay('');
+                  if (activeView === 'difficultes') {
+                    setDifficultyMonth(event.target.value);
+                    setDifficultyDay('');
+                  } else {
+                    setSelectedMonth(event.target.value);
+                  }
                 }}
                 className="h-10 rounded-xl border bg-white px-3 text-sm font-bold"
                 aria-label="Période"
               >
+                {activeView === 'difficultes' && (
+                  <option value="">Toutes les périodes</option>
+                )}
                 {monthOptions.map((month) => (
                   <option key={month.value} value={month.value}>
                     {month.label}
