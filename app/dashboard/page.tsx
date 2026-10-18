@@ -1,5 +1,8 @@
 'use client';
 
+import { AdminPermissions } from '@/components/admin-permissions';
+import type { SessionUser } from '@/lib/api';
+import { updateStoredUser } from '@/lib/api';
 import { FormEvent, useEffect, useState } from 'react';
 import {
   AlertTriangle,
@@ -67,6 +70,8 @@ type Account = {
   phone?: string;
   active: boolean;
   mfaEnabled?: boolean;
+  isPrimaryAdmin?: boolean;
+  permissions?: string[];
 };
 type Analytics = {
   current_revenue: number;
@@ -220,6 +225,10 @@ const adminNavigation = [
 ] as const;
 
 export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
+  const [sessionUser, setSessionUser] = useState<SessionUser | null>(null);
+  const [rightsAccount, setRightsAccount] = useState<Account | null>(null);
+  const can = (permission: string) => Boolean(sessionUser?.permissions?.includes(permission));
+  const isPrimary = Boolean(sessionUser?.is_primary_admin);
   const [activeView, setActiveView] = useState<AdminView>(view);
   const [accounts, setAccounts] = useState(initialAccounts);
   const [issues, setIssues] = useState(initialIssues);
@@ -310,8 +319,26 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
   async function loadDashboard(force = false) {
     setLoading(true);
     try {
-      const cached = <T,>(path: string) =>
-        apiFetchCached<T>(path, { force, maxAge: 300_000 });
+      const me = await apiFetch<SessionUser>('/api/me');
+      setSessionUser(me);
+      updateStoredUser(me);
+      if (me.role !== 'administrateur') { window.location.replace('/depositaire'); return; }
+      const allowed = (permission: string) => Boolean(me.permissions?.includes(permission));
+      if (!allowed(`${activeView}.view`)) {
+        const first = adminNavigation.find(item => allowed(`${item.view}.view`));
+        if (first) { setActiveView(first.view); window.history.replaceState({}, '', first.href); }
+        return;
+      }
+      const optionalModules: Record<string, string> = {
+        sales: 'donnees', stocks: 'donnees', audit: 'audit', notifications: 'notifications',
+        'system-status': 'systeme', difficulties: 'difficultes',
+      };
+      const cached = <T,>(path: string): Promise<T> => {
+        const resource = path.split('/')[3]?.split('?')[0];
+        const module = optionalModules[resource];
+        if (module && !allowed(`${module}.view`)) return Promise.resolve((resource === 'system-status' ? null : []) as T);
+        return apiFetchCached<T>(path, { force, maxAge: 0 });
+      };
       const storedUser = getStoredUser();
       if (storedUser?.name) setAdminName(storedUser.name);
       const depotQuery = selectedDepot ? `?depot_id=${selectedDepot}` : '';
@@ -370,6 +397,8 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
             phone: row.phone,
             active: row.active,
             mfaEnabled: row.mfa_enabled,
+            isPrimaryAdmin: row.is_primary_admin,
+            permissions: row.permissions,
           })),
         );
       } else if (activeView === 'revendeurs') {
@@ -551,28 +580,6 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
     window.addEventListener('popstate', syncViewWithUrl);
     return () => window.removeEventListener('popstate', syncViewWithUrl);
   }, []);
-
-  useEffect(() => {
-    if (!getToken()) return;
-    const prefetchTimer = window.setTimeout(() => {
-      const paths = [
-        `/api/admin/summary?period=${selectedMonth}`,
-        '/api/admin/users',
-        '/api/admin/vendors',
-        `/api/admin/performances?period=${selectedMonth}`,
-        `/api/admin/analytics?period=${selectedMonth}`,
-        '/api/admin/bonuses',
-        '/api/admin/difficulties',
-        '/api/admin/sales',
-        '/api/admin/stocks',
-        '/api/admin/depots',
-      ];
-      void Promise.allSettled(
-        paths.map((path) => apiFetchCached(path, { maxAge: 300_000 })),
-      );
-    }, 250);
-    return () => window.clearTimeout(prefetchTimer);
-  }, [selectedMonth]);
 
   function createAccount(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -756,6 +763,13 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
     ? issues.filter((item) => item.state === difficultyStatus)
     : issues;
 
+  if (!sessionUser || !can(`${activeView}.view`)) return (
+    <main className="min-h-screen bg-slate-50 p-8 text-slate-900"><h1 className="text-xl font-bold">Espace administrateur</h1>
+      <p className="my-5">{loading ? 'Vérification des accès…' : loadError || 'Aucune rubrique ne vous est autorisée. Contactez l’administratrice principale.'}</p>
+      <Button onClick={() => { clearSession(); window.location.replace('/connexion'); }}>Se déconnecter</Button>
+    </main>
+  );
+
   return (
     <main className="dashboard-shell min-h-screen bg-[#f3f7fb] text-[#122043] transition-colors lg:grid lg:grid-cols-[250px_1fr]">
       <aside className="hidden min-h-screen flex-col bg-[#073b86] px-4 py-5 text-white lg:flex">
@@ -773,7 +787,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
           </span>
         </a>
         <nav className="mt-10 space-y-1 text-sm font-bold">
-          {adminNavigation.map(
+          {adminNavigation.filter(item => can(`${item.view}.view`)).map(
             ({ href, view: itemView, label, icon: Icon }) => (
               <a
                 key={label}
@@ -850,7 +864,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                   </div>
                 </SheetHeader>
                 <nav className="space-y-1 px-4 py-4 text-sm font-bold">
-                  {adminNavigation.map(
+                  {adminNavigation.filter(item => can(`${item.view}.view`)).map(
                     ({ href, view: itemView, label, icon: Icon }) => (
                       <a
                         key={label}
@@ -909,7 +923,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                 description: 'Consultez les remontées PRIME ouvertes.',
                 href: '/dashboard/difficultes',
               },
-            ].filter(() => summary.open_difficulties > 0)}
+            ].filter(() => can('difficultes.view') && summary.open_difficulties > 0)}
           />
         </header>
         <div className="p-5 lg:p-8">
@@ -1189,8 +1203,10 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                     </CardDescription>
                   </div>
                   <Button
+                    disabled={!can('comptes.edit')}
                     onClick={() => {
                       setActionError('');
+                      setAccountRole(isPrimary ? 'administrateur' : 'depositaire');
                       setShowAccountForm((value) => !value);
                     }}
                     className="bg-[#0a4ea8]"
@@ -1229,7 +1245,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                         }
                         className="mt-2 h-10 w-full rounded-md border bg-white px-3"
                       >
-                        <option value="administrateur">Administrateur</option>
+                        {isPrimary && <option value="administrateur">Administrateur</option>}
                         <option value="depositaire">Dépositaire</option>
                         <option value="revendeur">Revendeur</option>
                       </select>
@@ -1318,10 +1334,13 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
+                            <div className="flex flex-wrap justify-end gap-2">
+                              {row.isPrimaryAdmin && <Badge>Compte principal</Badge>}
+                              {isPrimary && row.role === 'administrateur' && !row.isPrimaryAdmin && <Button size="sm" variant="outline" onClick={() => setRightsAccount(row)}>Droits d’accès</Button>}
                               <Button
                                 size="sm"
                                 variant="outline"
+                                disabled={!can('comptes.edit') || (row.role === 'administrateur' && !isPrimary)}
                                 onClick={() => {
                                   setEditingAccount(row);
                                   setEditRole(row.role);
@@ -1334,6 +1353,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                                 <Button
                                   size="sm"
                                   variant="outline"
+                                  disabled={!can('comptes.edit') || (row.role === 'administrateur' && !isPrimary)}
                                   onClick={() => resetMfa(row)}
                                   title="Réinitialiser Google Authenticator"
                                 >
@@ -1343,6 +1363,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                               <Button
                                 size="sm"
                                 variant="outline"
+                                disabled={!can('comptes.edit') || row.isPrimaryAdmin || (row.role === 'administrateur' && !isPrimary)}
                                 onClick={() => toggleAccount(row)}
                                 className={
                                   row.active
@@ -1443,7 +1464,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
 
           {activeView === 'analyses' && analytics && (
             <div className="mt-6 space-y-6">
-              {systemStatus && (!systemStatus.email_configured || !systemStatus.whatsapp_configured) && (
+              {can('systeme.view') && systemStatus && (!systemStatus.email_configured || !systemStatus.whatsapp_configured) && (
                 <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
                   <strong>Canaux à configurer :</strong>{' '}
                   {!systemStatus.email_configured && 'e-mail Resend '}
@@ -1479,9 +1500,9 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                 <Card className="border-0 bg-white ring-blue-950/7"><CardHeader><CardTitle>Classement des revendeurs</CardTitle></CardHeader><CardContent className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>#</TableHead><TableHead>Revendeur</TableHead><TableHead>Dépôt</TableHead><TableHead>Ventes</TableHead><TableHead>CA</TableHead></TableRow></TableHeader><TableBody>{analytics.vendor_ranking.map((row, index) => <TableRow key={row.phone}><TableCell>{index + 1}</TableCell><TableCell className="font-bold">{row.name}</TableCell><TableCell>{row.depot}</TableCell><TableCell>{row.sales}</TableCell><TableCell>{row.amount.toLocaleString('fr-FR')} FCFA</TableCell></TableRow>)}{analytics.vendor_ranking.length === 0 && <TableRow><TableCell colSpan={5} className="py-8 text-center text-slate-500">Aucun résultat.</TableCell></TableRow>}</TableBody></Table></CardContent></Card>
                 <Card className="border-0 bg-white ring-blue-950/7"><CardHeader><CardTitle>Classement des dépôts</CardTitle></CardHeader><CardContent className="space-y-3">{analytics.depot_ranking.map((row, index) => <div key={row.id} className="flex items-center justify-between rounded-xl bg-blue-50/60 p-3"><span><strong>{index + 1}. {row.name}</strong><small className="block text-slate-500">{row.sales} vente(s)</small></span><strong>{row.amount.toLocaleString('fr-FR')} FCFA</strong></div>)}{analytics.depot_ranking.length === 0 && <p className="text-sm text-slate-500">Aucun résultat.</p>}</CardContent></Card>
               </div>
-              <Card className="border-0 bg-white ring-blue-950/7"><CardHeader><CardTitle>Objectifs par produit</CardTitle><CardDescription>Objectifs nationaux ou du dépôt sélectionné pour {selectedMonth}.</CardDescription></CardHeader><CardContent className="grid gap-4 lg:grid-cols-3">{analytics.product_targets.map((row) => <form key={row.product.id} onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); void saveTarget(row.product.id, Number(form.get('target'))); }} className="rounded-2xl border p-4"><strong>{row.product.name}</strong><p className="mt-1 text-sm text-slate-500">Réalisé : {row.actual_quantity} · {row.completion_rate}%</p><div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full bg-emerald-500" style={{ width: `${Math.min(row.completion_rate, 100)}%` }} /></div><div className="mt-4 flex gap-2"><Input name="target" type="number" min="0" defaultValue={row.quantity_target} aria-label={`Objectif ${row.product.name}`} /><Button type="submit" size="sm">Enregistrer</Button></div></form>)}</CardContent></Card>
-              <Card className="border-0 bg-white ring-blue-950/7"><CardHeader><CardTitle>Livraison des notifications</CardTitle><CardDescription>Historique e-mail, WhatsApp et nouvelles tentatives.</CardDescription></CardHeader><CardContent className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Destinataire</TableHead><TableHead>Alerte</TableHead><TableHead>E-mail</TableHead><TableHead>WhatsApp</TableHead><TableHead>Action</TableHead></TableRow></TableHeader><TableBody>{deliveryRows.map((row) => <TableRow key={row.id}><TableCell>{new Date(row.created_at).toLocaleString('fr-FR')}</TableCell><TableCell>{row.recipient?.name ?? '—'}</TableCell><TableCell>{row.title}</TableCell><TableCell><Badge variant="outline">{row.email_status}</Badge></TableCell><TableCell><Badge variant="outline">{row.whatsapp_status}</Badge></TableCell><TableCell><Button size="sm" variant="outline" onClick={() => retryDelivery(row.id)}>Réessayer</Button></TableCell></TableRow>)}{deliveryRows.length === 0 && <TableRow><TableCell colSpan={6} className="py-8 text-center text-slate-500">Aucune notification envoyée.</TableCell></TableRow>}</TableBody></Table></CardContent></Card>
-              <Card className="border-0 bg-white ring-blue-950/7"><CardHeader><CardTitle>Journal d’audit</CardTitle><CardDescription>Traçabilité des validations, rejets, modifications, suspensions et primes.</CardDescription></CardHeader><CardContent className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Responsable</TableHead><TableHead>Action</TableHead><TableHead>Élément</TableHead><TableHead>Détail</TableHead></TableRow></TableHeader><TableBody>{auditRows.map((row) => <TableRow key={row.id}><TableCell>{new Date(row.created_at).toLocaleString('fr-FR')}</TableCell><TableCell>{row.actor?.name ?? 'Système'}</TableCell><TableCell><Badge variant="outline">{String(row.action).replaceAll('_', ' ')}</Badge></TableCell><TableCell>{row.entity_type} #{row.entity_id}</TableCell><TableCell>{row.description}</TableCell></TableRow>)}{auditRows.length === 0 && <TableRow><TableCell colSpan={5} className="py-8 text-center text-slate-500">Aucune opération enregistrée pour ces dates.</TableCell></TableRow>}</TableBody></Table></CardContent></Card>
+              <Card className="border-0 bg-white ring-blue-950/7"><CardHeader><CardTitle>Objectifs par produit</CardTitle><CardDescription>Objectifs nationaux ou du dépôt sélectionné pour {selectedMonth}.</CardDescription></CardHeader><CardContent className="grid gap-4 lg:grid-cols-3">{analytics.product_targets.map((row) => <form key={row.product.id} onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget); void saveTarget(row.product.id, Number(form.get('target'))); }} className="rounded-2xl border p-4"><strong>{row.product.name}</strong><p className="mt-1 text-sm text-slate-500">Réalisé : {row.actual_quantity} · {row.completion_rate}%</p><div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full bg-emerald-500" style={{ width: `${Math.min(row.completion_rate, 100)}%` }} /></div><div className="mt-4 flex gap-2"><Input name="target" type="number" min="0" defaultValue={row.quantity_target} aria-label={`Objectif ${row.product.name}`} /><Button type="submit" size="sm" disabled={!can('analyses.edit')}>Enregistrer</Button></div></form>)}</CardContent></Card>
+              {can('notifications.view') && (<Card className="border-0 bg-white ring-blue-950/7"><CardHeader><CardTitle>Livraison des notifications</CardTitle><CardDescription>Historique e-mail, WhatsApp et nouvelles tentatives.</CardDescription></CardHeader><CardContent className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Destinataire</TableHead><TableHead>Alerte</TableHead><TableHead>E-mail</TableHead><TableHead>WhatsApp</TableHead><TableHead>Action</TableHead></TableRow></TableHeader><TableBody>{deliveryRows.map((row) => <TableRow key={row.id}><TableCell>{new Date(row.created_at).toLocaleString('fr-FR')}</TableCell><TableCell>{row.recipient?.name ?? '—'}</TableCell><TableCell>{row.title}</TableCell><TableCell><Badge variant="outline">{row.email_status}</Badge></TableCell><TableCell><Badge variant="outline">{row.whatsapp_status}</Badge></TableCell><TableCell><Button size="sm" variant="outline" disabled={!can('notifications.edit')} onClick={() => retryDelivery(row.id)}>Réessayer</Button></TableCell></TableRow>)}{deliveryRows.length === 0 && <TableRow><TableCell colSpan={6} className="py-8 text-center text-slate-500">Aucune notification envoyée.</TableCell></TableRow>}</TableBody></Table></CardContent></Card>)}
+              {can('audit.view') && (<Card className="border-0 bg-white ring-blue-950/7"><CardHeader><CardTitle>Journal d’audit</CardTitle><CardDescription>Traçabilité des validations, rejets, modifications, suspensions et primes.</CardDescription></CardHeader><CardContent className="overflow-x-auto"><Table><TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Responsable</TableHead><TableHead>Action</TableHead><TableHead>Élément</TableHead><TableHead>Détail</TableHead></TableRow></TableHeader><TableBody>{auditRows.map((row) => <TableRow key={row.id}><TableCell>{new Date(row.created_at).toLocaleString('fr-FR')}</TableCell><TableCell>{row.actor?.name ?? 'Système'}</TableCell><TableCell><Badge variant="outline">{String(row.action).replaceAll('_', ' ')}</Badge></TableCell><TableCell>{row.entity_type} #{row.entity_id}</TableCell><TableCell>{row.description}</TableCell></TableRow>)}{auditRows.length === 0 && <TableRow><TableCell colSpan={5} className="py-8 text-center text-slate-500">Aucune opération enregistrée pour ces dates.</TableCell></TableRow>}</TableBody></Table></CardContent></Card>)}
             </div>
           )}
 
@@ -1569,8 +1590,9 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                               .map((sale) => (
                                 <Button
                                   key={sale.id}
+                                  disabled={!can('performances.edit')}
                                   size="sm"
-                                  onClick={() => assignPrize(sale.id, row.seller)}
+                                  onClick={() => { if (can('performances.edit')) void assignPrize(sale.id, row.seller); }}
                                   className="bg-yellow-400 text-[#082f70] hover:bg-yellow-300"
                                 >
                                   <Award /> 500 FCFA · {new Date(`${sale.date}T00:00:00`).toLocaleDateString('fr-FR')}
@@ -1738,7 +1760,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => nextIssueState(row.id)}
+                              disabled={!can('difficultes.edit')} onClick={() => nextIssueState(row.id)}
                             >
                               {row.state === 'ouverte'
                                 ? 'Passer en cours'
@@ -1837,6 +1859,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
           )}
         </div>
       </section>
+      {rightsAccount && <AdminPermissions account={rightsAccount} onClose={() => setRightsAccount(null)} onSaved={() => { setRightsAccount(null); setNotice("Droits enregistrés. Ils s’appliquent immédiatement aux prochaines demandes."); void loadDashboard(true); }} />}
       {editingAccount && (
         <div className="fixed inset-0 z-[100] grid place-items-center overflow-y-auto bg-[#07162f]/65 p-5 backdrop-blur-sm">
           <Card className="w-full max-w-2xl bg-white">
@@ -1867,6 +1890,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                   <Input
                     name="email"
                     type="email"
+                    readOnly={editingAccount.isPrimaryAdmin}
                     defaultValue={editingAccount.email}
                     required
                     className="mt-2"
@@ -1876,13 +1900,14 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                   <Label>Rôle *</Label>
                   <select
                     name="role"
+                    disabled={editingAccount.isPrimaryAdmin}
                     value={editRole}
                     onChange={(event) =>
                       setEditRole(event.target.value as Account['role'])
                     }
                     className="mt-2 h-10 w-full rounded-md border bg-white px-3"
                   >
-                    <option value="administrateur">Administrateur</option>
+                    {isPrimary && <option value="administrateur">Administrateur</option>}
                     <option value="depositaire">Dépositaire</option>
                     <option value="revendeur">Revendeur</option>
                   </select>

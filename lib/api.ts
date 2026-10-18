@@ -53,6 +53,8 @@ export type SessionUser = {
   email: string;
   phone?: string | null;
   role: 'administrateur' | 'depositaire' | 'revendeur';
+  is_primary_admin?: boolean;
+  permissions?: string[];
   depot?: { id: number; name: string; location: string } | null;
 };
 
@@ -145,6 +147,8 @@ export async function apiFetchCached<T>(
   path: string,
   { maxAge = 15_000, force = false }: { maxAge?: number; force?: boolean } = {},
 ): Promise<T> {
+  // Permissions may be revoked during a session: always reauthorize admin reads.
+  if (path.startsWith('/api/admin/')) return apiFetch<T>(path);
   const key = `${getToken() ?? 'anonymous'}:${path}`;
   const cached = responseCache.get(key);
   if (!force && cached && cached.expiresAt > Date.now()) {
