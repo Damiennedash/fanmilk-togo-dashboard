@@ -771,8 +771,8 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
   );
 
   return (
-    <main className="dashboard-shell min-h-screen bg-[#f3f7fb] text-[#122043] transition-colors lg:grid lg:grid-cols-[250px_1fr]">
-      <aside className="dashboard-sidebar sticky top-0 hidden h-dvh min-h-0 self-start flex-col overflow-hidden bg-[#073b86] px-4 py-4 text-white lg:flex">
+    <main className="dashboard-shell min-h-screen bg-[#f3f7fb] text-[#122043] transition-colors lg:pl-[250px]">
+      <aside className="dashboard-sidebar fixed inset-y-0 left-0 z-40 hidden h-dvh w-[250px] min-h-0 flex-col overflow-hidden bg-[#073b86] px-4 py-4 text-white lg:flex">
         <a href="/" className="shrink-0 flex items-center gap-3 px-2">
           <img
             src="/fan-site/logo-clean.png"
