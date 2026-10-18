@@ -772,8 +772,8 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
 
   return (
     <main className="dashboard-shell min-h-screen bg-[#f3f7fb] text-[#122043] transition-colors lg:grid lg:grid-cols-[250px_1fr]">
-      <aside className="hidden min-h-screen flex-col bg-[#073b86] px-4 py-5 text-white lg:flex">
-        <a href="/" className="flex items-center gap-3 px-2">
+      <aside className="dashboard-sidebar sticky top-0 hidden h-dvh min-h-0 self-start flex-col overflow-hidden bg-[#073b86] px-4 py-4 text-white lg:flex">
+        <a href="/" className="shrink-0 flex items-center gap-3 px-2">
           <img
             src="/fan-site/logo-clean.png"
             alt="FanMilk"
@@ -786,7 +786,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
             </small>
           </span>
         </a>
-        <nav className="mt-10 space-y-1 text-sm font-bold">
+        <nav aria-label="Navigation administrateur" className="sidebar-navigation mt-5 min-h-0 flex-1 overflow-y-auto overscroll-contain space-y-1 text-sm font-bold">
           {adminNavigation.filter(item => can(`${item.view}.view`)).map(
             ({ href, view: itemView, label, icon: Icon }) => (
               <a
@@ -806,7 +806,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
             ),
           )}
         </nav>
-        <div className="mt-auto border-t border-white/10 pt-4">
+        <div className="sidebar-footer mt-2 shrink-0 border-t border-white/10 pt-2">
           <a
             href="/profil"
             className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-blue-100/65"
@@ -844,9 +844,9 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
               </SheetTrigger>
               <SheetContent
                 side="left"
-                className="w-[86vw] max-w-sm border-0 bg-[#073b86] p-0 text-white"
+                className="max-h-dvh w-[86vw] max-w-sm gap-0 overflow-hidden border-0 bg-[#073b86] p-0 text-white"
               >
-                <SheetHeader className="border-b border-white/10 px-5 py-6 pr-14">
+                <SheetHeader className="shrink-0 border-b border-white/10 px-5 py-4 pr-14">
                   <div className="flex items-center gap-3">
                     <img
                       src="/fan-site/logo-clean.png"
@@ -863,7 +863,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                     </div>
                   </div>
                 </SheetHeader>
-                <nav className="space-y-1 px-4 py-4 text-sm font-bold">
+                <nav className="min-h-0 flex-1 overflow-y-auto overscroll-contain space-y-1 px-4 py-2 text-sm font-bold">
                   {adminNavigation.filter(item => can(`${item.view}.view`)).map(
                     ({ href, view: itemView, label, icon: Icon }) => (
                       <a
@@ -884,7 +884,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                     ),
                   )}
                 </nav>
-                <div className="mt-auto border-t border-white/10 p-4">
+                <div className="shrink-0 border-t border-white/10 px-4 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
                   <a
                     href="/profil"
                     className="flex min-h-12 items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold text-blue-100/80 hover:bg-white/10 hover:text-white"

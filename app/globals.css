@@ -530,3 +530,15 @@ h3 {
     @apply font-sans;
   }
 }
+
+/* Keep the account actions visible; only the navigation scrolls on short screens. */
+.dashboard-sidebar { padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); }
+.dashboard-sidebar .sidebar-navigation { scrollbar-width: thin; }
+@media (max-height: 760px) {
+  .dashboard-sidebar { padding-top: 0.75rem; }
+  .dashboard-sidebar .sidebar-navigation { margin-top: 0.75rem; }
+  .dashboard-sidebar .sidebar-navigation a,
+  .dashboard-sidebar .sidebar-footer a,
+  .dashboard-sidebar .sidebar-footer button { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+  .dashboard-sidebar .sidebar-depot { margin-top: 0.75rem; padding: 0.625rem; }
+}

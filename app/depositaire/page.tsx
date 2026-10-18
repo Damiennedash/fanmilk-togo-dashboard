@@ -497,8 +497,8 @@ export function DepositaireDashboard({
 
   return (
     <main className="dashboard-shell min-h-screen bg-[#f3f7fb] text-[#122043] transition-colors lg:grid lg:grid-cols-[250px_1fr]">
-      <aside className="sticky top-0 hidden h-screen flex-col bg-[#073b86] px-4 py-5 text-white lg:flex">
-        <a href="/" className="flex items-center gap-3 px-2">
+      <aside className="dashboard-sidebar sticky top-0 hidden h-dvh min-h-0 self-start flex-col overflow-hidden bg-[#073b86] px-4 py-4 text-white lg:flex">
+        <a href="/" className="shrink-0 flex items-center gap-3 px-2">
           <img
             src="/fan-site/logo-clean.png"
             alt="FanMilk"
@@ -513,7 +513,7 @@ export function DepositaireDashboard({
             </small>
           </span>
         </a>
-        <div className="mx-2 mt-6 rounded-2xl border border-white/10 bg-white/8 p-3">
+        <div className="sidebar-depot mx-2 mt-4 shrink-0 rounded-2xl border border-white/10 bg-white/8 p-3">
           <strong className="block truncate text-xs text-white">
             {user?.depot.name ?? 'Votre dépôt'}
           </strong>
@@ -521,7 +521,7 @@ export function DepositaireDashboard({
             <MapPin className="size-3" /> {user?.depot.location ?? 'Togo'}
           </span>
         </div>
-        <nav className="mt-6 space-y-1 text-sm font-bold">
+        <nav aria-label="Navigation dépositaire" className="sidebar-navigation mt-4 min-h-0 flex-1 overflow-y-auto overscroll-contain space-y-1 text-sm font-bold">
           {depositaireNavigation.map(
             ({ href, view: itemView, label, icon: Icon }) => (
               <a
@@ -542,7 +542,7 @@ export function DepositaireDashboard({
             ),
           )}
         </nav>
-        <div className="mt-auto border-t border-white/10 pt-4">
+        <div className="sidebar-footer mt-2 shrink-0 border-t border-white/10 pt-2">
           <a
             href="/profil"
             className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-blue-100/65 hover:bg-white/10 hover:text-white"
@@ -580,9 +580,9 @@ export function DepositaireDashboard({
               </SheetTrigger>
               <SheetContent
                 side="left"
-                className="w-[86vw] max-w-sm border-0 bg-[#073b86] p-0 text-white"
+                className="max-h-dvh w-[86vw] max-w-sm gap-0 overflow-hidden border-0 bg-[#073b86] p-0 text-white"
               >
-                <SheetHeader className="border-b border-white/10 px-5 py-6 pr-14">
+                <SheetHeader className="shrink-0 border-b border-white/10 px-5 py-4 pr-14">
                   <div className="flex items-center gap-3">
                     <img
                       src="/fan-site/logo-clean.png"
@@ -599,7 +599,7 @@ export function DepositaireDashboard({
                     </div>
                   </div>
                 </SheetHeader>
-                <nav className="space-y-1 px-4 py-4 text-sm font-bold">
+                <nav className="min-h-0 flex-1 overflow-y-auto overscroll-contain space-y-1 px-4 py-2 text-sm font-bold">
                   {depositaireNavigation.map(
                     ({ href, view: itemView, label, icon: Icon }) => (
                       <a
@@ -620,7 +620,7 @@ export function DepositaireDashboard({
                     ),
                   )}
                 </nav>
-                <div className="mt-auto border-t border-white/10 p-4">
+                <div className="shrink-0 border-t border-white/10 px-4 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
                   <a
                     href="/profil"
                     className="flex min-h-12 items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold text-blue-100/80 hover:bg-white/10 hover:text-white"
