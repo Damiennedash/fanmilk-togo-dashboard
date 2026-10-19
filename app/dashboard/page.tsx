@@ -1,4 +1,5 @@
 'use client';
+import { BonusWorkspace } from '@/components/bonus-workspace';
 import { DifficultyFollowup } from '@/components/difficulty-followup';
 
 import { AdminPermissions } from '@/components/admin-permissions';
@@ -738,12 +739,13 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
   async function assignPrize(saleId: number, seller: string) {
     setActionError('');
     try {
-      await apiFetch('/api/admin/bonuses', {
+      const awarded = await apiFetch<any>('/api/admin/bonuses', {
         method: 'POST',
         body: JSON.stringify({ sale_id: saleId }),
       });
       invalidateApiCache();
-      void loadDashboard(true);
+      setPerformances(current => current.map(row => ({...row, dailySales: row.dailySales.map(sale => sale.id === saleId ? {...sale, bonusAwarded: true, bonusAmount: Number(awarded.amount)} : sale)})));
+      setBonuses(current => [{id: awarded.id, seller: awarded.vendor.name, depot: awarded.depot.name, period: awarded.period, amount: Number(awarded.amount), date: new Date(awarded.awarded_at).toLocaleDateString('fr-FR')}, ...current.filter(row => row.id !== awarded.id)]);
       setNotice(`Prime de 500 FCFA attribuée à ${seller} pour cette vente.`);
     } catch (error) {
       setActionError(
@@ -1836,159 +1838,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
             </div>
           )}
 
-          {activeView === 'performances' && (
-            <Card className="mt-6 border-0 bg-white ring-blue-950/7">
-              <CardHeader>
-                <CardTitle>Performances et attribution des primes</CardTitle>
-                <CardDescription>
-                  Règle : chaque vente validée dépassant 18 000 FCFA donne droit
-                  à une prime fixe de 500 FCFA. Aucun cumul mensuel.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Revendeur</TableHead>
-                      <TableHead>Dépôt</TableHead>
-                      <TableHead>Période</TableHead>
-                      <TableHead>CA</TableHead>
-                      <TableHead>Décision</TableHead>
-                      <TableHead>Ventes</TableHead>
-                      <TableHead className="text-right">Prime</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {performances.map((row) => (
-                      <TableRow key={row.seller}>
-                        <TableCell className="font-bold">
-                          {row.seller}
-                        </TableCell>
-                        <TableCell>{row.depot}</TableCell>
-                        <TableCell>{row.period}</TableCell>
-                        <TableCell className="font-black">
-                          {row.amount} FCFA
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            className={
-                              row.eligible
-                                ? 'bg-emerald-50 text-emerald-700'
-                                : 'bg-slate-100 text-slate-600'
-                            }
-                          >
-                            {row.eligible ? 'Éligible' : 'Non éligible'}
-                          </Badge>
-                          <small className="mt-1 block text-slate-400">
-                            Score {row.score}/100 · moyenne{' '}
-                            {row.average.toLocaleString('fr-FR')} FCFA
-                          </small>
-                        </TableCell>
-                        <TableCell>
-                          <div className="min-w-52 space-y-2">
-                            {row.dailySales.map((sale) => (
-                              <div
-                                key={sale.id}
-                                className="rounded-lg border bg-slate-50 px-2 py-1.5 text-xs"
-                              >
-                                <strong>
-                                  {new Date(`${sale.date}T00:00:00`).toLocaleDateString('fr-FR')}
-                                </strong>{' '}
-                                · {sale.amount.toLocaleString('fr-FR')} FCFA
-                                <span className="block text-slate-500">
-                                  {sale.bonusAwarded
-                                    ? 'Prime de 500 FCFA attribuée'
-                                    : sale.eligible
-                                      ? 'Éligible à 500 FCFA'
-                                      : 'Seuil non atteint'}
-                                </span>
-                              </div>
-                            ))}
-                            {row.dailySales.length === 0 && (
-                              <span className="text-slate-400">Aucune vente validée</span>
-                            )}
-                            <small className="block text-slate-400">
-                              {row.validated} validée(s) · {row.rejected} rejetée(s)
-                              {' · '}{row.pending} en attente
-                            </small>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex min-w-32 flex-col items-end gap-2">
-                            {row.dailySales
-                              .filter((sale) => sale.eligible && !sale.bonusAwarded)
-                              .map((sale) => (
-                                <Button
-                                  key={sale.id}
-                                  disabled={!can('performances.edit')}
-                                  size="sm"
-                                  onClick={() => { if (can('performances.edit')) void assignPrize(sale.id, row.seller); }}
-                                  className="bg-yellow-400 text-[#082f70] hover:bg-yellow-300"
-                                >
-                                  <Award /> 500 FCFA · {new Date(`${sale.date}T00:00:00`).toLocaleDateString('fr-FR')}
-                                </Button>
-                              ))}
-                            {!row.dailySales.some(
-                              (sale) => sale.eligible && !sale.bonusAwarded,
-                            ) && <span className="text-xs text-slate-400">Aucune prime à attribuer</span>}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {!loading && performances.length === 0 && (
-                      <TableRow>
-                        <TableCell
-                          colSpan={7}
-                          className="py-10 text-center text-slate-500"
-                        >
-                          Aucun revendeur actif pour cette période.
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          )}
-
-          {activeView === 'performances' && bonuses.length > 0 && (
-            <Card className="mt-6 border-0 bg-white ring-blue-950/7">
-              <CardHeader>
-                <CardTitle>Primes déjà attribuées</CardTitle>
-                <CardDescription>
-                  Historique des décisions enregistrées.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Revendeur</TableHead>
-                      <TableHead>Dépôt</TableHead>
-                      <TableHead>Période</TableHead>
-                      <TableHead>Montant</TableHead>
-                      <TableHead>Date</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {bonuses.map((row) => (
-                      <TableRow key={row.id}>
-                        <TableCell className="font-bold">
-                          {row.seller}
-                        </TableCell>
-                        <TableCell>{row.depot}</TableCell>
-                        <TableCell>{row.period}</TableCell>
-                        <TableCell>
-                          {row.amount.toLocaleString('fr-FR')} FCFA
-                        </TableCell>
-                        <TableCell>{row.date}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          )}
+          {activeView === 'performances' && <BonusWorkspace performances={performances} bonuses={bonuses} editable={can('performances.edit')} loading={loading} scope={`${selectedMonth}:${selectedDepot}`} onAssign={assignPrize} />}
 
           {(activeView === 'difficultes' || activeView === 'donnees') && (
             <section className="mt-6">
