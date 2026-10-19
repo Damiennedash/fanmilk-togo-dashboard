@@ -19,6 +19,14 @@ async function proxyRequest(request: Request, context: RouteContext) {
   if (contentType) headers.set('content-type', contentType);
   if (authorization) headers.set('authorization', authorization);
 
+  if (path[0] === 'auth') {
+    const origin = request.headers.get('origin');
+    if (origin && origin !== incomingUrl.origin) return Response.json({error: 'Origine non autorisée'}, {status: 403});
+    const cookie = request.headers.get('cookie');
+    if (cookie) headers.set('cookie', cookie);
+    const sessionHeader = request.headers.get('X-FanMilk-Session');
+    if (sessionHeader) headers.set('X-FanMilk-Session', sessionHeader);
+  }
   try {
     const upstream = await fetch(upstreamUrl, {
       method: request.method,
@@ -28,7 +36,7 @@ async function proxyRequest(request: Request, context: RouteContext) {
           ? undefined
           : await request.arrayBuffer(),
       redirect: 'manual',
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(path[0] === "auth" ? 90_000 : 15_000),
     });
 
     const responseHeaders = new Headers();
@@ -36,6 +44,8 @@ async function proxyRequest(request: Request, context: RouteContext) {
     if (upstreamContentType)
       responseHeaders.set('content-type', upstreamContentType);
     responseHeaders.set('cache-control', 'no-store');
+    const cookie = upstream.headers.get('set-cookie');
+    if (path[0] === 'auth' && cookie) responseHeaders.append('set-cookie', cookie);
 
     return new Response(upstream.body, {
       status: upstream.status,

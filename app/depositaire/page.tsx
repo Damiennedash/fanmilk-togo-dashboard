@@ -51,6 +51,7 @@ import {
   clearSession,
   getStoredUser,
   getToken,
+  ensureSession,
   invalidateApiCache,
 } from '@/lib/api';
 
@@ -346,13 +347,10 @@ export function DepositaireDashboard({
   }
 
   useEffect(() => {
-    if (!getToken()) {
-      window.location.replace(
-        `/connexion?returnTo=${encodeURIComponent(window.location.pathname)}`,
-      );
-      return;
-    }
-    loadDashboard();
+    void ensureSession().then(ready => {
+      if (!ready) window.location.replace(`/connexion?returnTo=${encodeURIComponent(window.location.pathname)}`);
+      else void loadDashboard();
+    }).catch(error => { setLoadError(error instanceof Error ? error.message : 'Serveur indisponible. Réessayez.'); });
     const refreshTimer = window.setInterval(() => loadDashboard(true), 30000);
     return () => window.clearInterval(refreshTimer);
   }, [activeView, selectedMonth, dateFrom, dateTo]);

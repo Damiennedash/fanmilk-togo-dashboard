@@ -31,6 +31,7 @@ import {
   clearSession,
   getStoredUser,
   getToken,
+  ensureSession,
   SessionUser,
   updateStoredUser,
 } from '@/lib/api';
@@ -48,19 +49,19 @@ export default function ProfilePage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!getToken()) {
-      window.location.replace('/connexion?returnTo=/profil');
-      return;
-    }
+
     const storedUser = getStoredUser();
     if (storedUser) hydrateUser(storedUser);
     setDarkMode(localStorage.getItem(THEME_KEY) === 'dark');
     setNotificationsEnabled(
       localStorage.getItem(NOTIFICATIONS_KEY) !== 'disabled',
     );
-    apiFetch<SessionUser>('/api/me')
+    ensureSession().then(ready => {
+      if (!ready) { window.location.replace('/connexion?returnTo=/profil'); throw new Error('Connexion requise'); }
+      return apiFetch<SessionUser>('/api/me');
+    })
       .then(hydrateUser)
-      .catch(() => window.location.replace('/connexion?returnTo=/profil'));
+      .catch(reason => setError(reason instanceof Error ? reason.message : 'Serveur momentanément indisponible.'));
   }, []);
 
   function hydrateUser(nextUser: SessionUser) {

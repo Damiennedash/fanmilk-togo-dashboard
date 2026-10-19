@@ -10,22 +10,13 @@ import {
   Mail,
   ShieldCheck,
 } from 'lucide-react';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   apiFetch,
   apiFetchWithToken,
-  clearSession,
+  restoreSession,
   getStoredUser,
   getToken,
   saveSession,
@@ -42,8 +33,8 @@ export default function ConnexionPage() {
   const [loading, setLoading] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
   const [error, setError] = useState('');
-  const [sessionPrompt, setSessionPrompt] = useState(false);
-  const [existingUser, setExistingUser] = useState<SessionUser | null>(null);
+  const [checkingSession, setCheckingSession] = useState(true);
+  const [sessionError, setSessionError] = useState('');
   const [mfaToken, setMfaToken] = useState('');
   const [mfaCode, setMfaCode] = useState('');
   const [mfaQrCode, setMfaQrCode] = useState('');
@@ -51,17 +42,20 @@ export default function ConnexionPage() {
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
   const [loginDestination, setLoginDestination] = useState('/dashboard');
 
+  async function checkExistingSession() {
+    setCheckingSession(true);
+    setSessionError('');
+    try {
+      const stored = getStoredUser();
+      const user = getToken() && stored ? stored : await restoreSession();
+      if (user) { window.location.replace(userHome(user)); return; }
+      setCheckingSession(false);
+    } catch {
+      setSessionError('Le serveur est momentanément indisponible. Votre session n’a pas été supprimée.');
+    }
+  }
   useEffect(() => {
-    const checkExistingSession = () => {
-      const storedUser = getStoredUser();
-      if (getToken() && storedUser) {
-        setExistingUser(storedUser);
-        setSessionPrompt(true);
-      }
-    };
-    checkExistingSession();
-    window.addEventListener('pageshow', checkExistingSession);
-    return () => window.removeEventListener('pageshow', checkExistingSession);
+    void checkExistingSession();
   }, []);
 
   function userHome(user: SessionUser) {
@@ -161,40 +155,10 @@ export default function ConnexionPage() {
     }
   }
 
+  if (checkingSession) return <main className="grid min-h-screen place-items-center bg-[#f4f8fc] p-6 text-center"><div><p role="status">{sessionError || 'Restauration de votre session… Le premier accès peut prendre une minute.'}</p>{sessionError && <Button className="mt-4" onClick={() => void checkExistingSession()}>Réessayer</Button>}</div></main>;
+
   return (
     <main className="grid min-h-screen bg-[#f4f8fc] lg:grid-cols-[1.08fr_.92fr]">
-      <AlertDialog open={sessionPrompt}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Vous êtes déjà connecté</AlertDialogTitle>
-            <AlertDialogDescription>
-              Voulez-vous revenir à votre tableau de bord ou vous déconnecter
-              pour utiliser un autre compte ?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogAction
-              variant="outline"
-              onClick={() => {
-                clearSession();
-                setExistingUser(null);
-                setSessionPrompt(false);
-              }}
-            >
-              Se déconnecter
-            </AlertDialogAction>
-            <AlertDialogAction
-              onClick={() => {
-                if (existingUser)
-                  window.location.replace(userHome(existingUser));
-              }}
-              className="bg-[#0a4ea8] hover:bg-[#082f70]"
-            >
-              Revenir au tableau de bord
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
       <section className="relative hidden overflow-hidden bg-[radial-gradient(circle_at_68%_45%,#0e78db_0%,#0754ad_40%,#052f79_75%,#031d52_100%)] p-12 text-white lg:flex lg:flex-col lg:justify-between">
         <div className="absolute inset-0 opacity-20 [background-image:radial-gradient(circle_at_center,white_1px,transparent_1px)] [background-size:34px_34px]" />
         <a href="/" className="relative z-40 flex items-center gap-3">
@@ -363,7 +327,7 @@ export default function ConnexionPage() {
                   disabled={loading}
                   className="h-12 w-full rounded-xl bg-[#0a4ea8] text-base font-black hover:bg-[#082f70]"
                 >
-                  {loading ? 'Connexion…' : 'Se connecter'} <ArrowRight />
+                  {loading ? 'Connexion en cours… veuillez patienter' : 'Se connecter'} <ArrowRight />
                 </Button>
                 <p className="flex items-center justify-center gap-2 text-xs text-slate-400">
                   <ShieldCheck className="size-4 text-emerald-600" />

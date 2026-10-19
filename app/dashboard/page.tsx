@@ -57,6 +57,7 @@ import {
   clearSession,
   getStoredUser,
   getToken,
+  ensureSession,
   invalidateApiCache,
 } from '@/lib/api';
 
@@ -559,13 +560,10 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
   }
 
   useEffect(() => {
-    if (!getToken()) {
-      window.location.replace(
-        `/connexion?returnTo=${encodeURIComponent(window.location.pathname)}`,
-      );
-      return;
-    }
-    loadDashboard();
+    void ensureSession().then(ready => {
+      if (!ready) window.location.replace(`/connexion?returnTo=${encodeURIComponent(window.location.pathname)}`);
+      else void loadDashboard();
+    }).catch(error => { setLoadError(error instanceof Error ? error.message : 'Serveur indisponible. Réessayez.'); });
     const refreshTimer = window.setInterval(() => loadDashboard(true), 30000);
     return () => window.clearInterval(refreshTimer);
   }, [activeView, selectedMonth, selectedDepot, dateFrom, dateTo, difficultyDay, difficultyMonth]);

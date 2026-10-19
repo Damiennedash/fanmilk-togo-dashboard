@@ -15,7 +15,7 @@ async function fetchWithTimeout(
   const controller = new AbortController();
   const timeout = setTimeout(
     () => controller.abort('timeout'),
-    REQUEST_TIMEOUT_MS,
+    String(input).includes("/api/auth/") ? 95_000 : REQUEST_TIMEOUT_MS,
   );
   const abortFromCaller = () => controller.abort(options.signal?.reason);
   options.signal?.addEventListener('abort', abortFromCaller, { once: true });
@@ -42,7 +42,7 @@ function clearStoredApiCache() {
 }
 
 export function getToken() {
-  return typeof window === 'undefined'
+  return typeof window === 'undefined' || localStorage.getItem('fanmilk_signed_out') === '1'
     ? null
     : sessionStorage.getItem('fanmilk_access_token');
 }
@@ -70,6 +70,7 @@ export function getStoredUser(): SessionUser | null {
 }
 
 export function saveSession(accessToken: string, user: SessionUser) {
+  localStorage.removeItem("fanmilk_signed_out");
   invalidateApiCache();
   sessionStorage.setItem('fanmilk_access_token', accessToken);
   sessionStorage.setItem('fanmilk_user', JSON.stringify(user));
@@ -79,7 +80,14 @@ export function updateStoredUser(user: SessionUser) {
   sessionStorage.setItem('fanmilk_user', JSON.stringify(user));
 }
 
-export function clearSession() {
+export function clearSession(revoke = true) {
+  if (revoke) {
+    localStorage.setItem('fanmilk_signed_out', '1');
+    void fetch(`${API_URL}/api/auth/logout`, {
+      method: 'POST', credentials: 'include', keepalive: true,
+      headers: { 'X-FanMilk-Session': '1' },
+    }).catch(() => undefined);
+  }
   sessionStorage.removeItem('fanmilk_access_token');
   sessionStorage.removeItem('fanmilk_user');
   responseCache.clear();
@@ -90,6 +98,7 @@ export function clearSession() {
 export async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
+  renewed = false,
 ): Promise<T> {
   const token = getToken();
   const headers = new Headers(options.headers);
@@ -99,6 +108,7 @@ export async function apiFetch<T>(
   const response = await fetchWithTimeout(`${API_URL}${path}`, {
     ...options,
     headers,
+    credentials: "include",
   });
   const body = (await response.json().catch(() => ({}))) as {
     error?: string;
@@ -106,7 +116,11 @@ export async function apiFetch<T>(
   };
   if (!response.ok) {
     if (response.status === 401 && typeof window !== 'undefined') {
-      clearSession();
+      if (!renewed && !path.startsWith('/api/auth/')) {
+        const restored = await restoreSession();
+        if (restored) return apiFetch<T>(path, options, true);
+      }
+      clearSession(false);
       if (!path.startsWith('/api/auth/')) {
         window.location.replace(
           `/connexion?returnTo=${encodeURIComponent(window.location.pathname)}`,
@@ -131,6 +145,7 @@ export async function apiFetchWithToken<T>(
   const response = await fetchWithTimeout(`${API_URL}${path}`, {
     ...options,
     headers,
+    credentials: "include",
   });
   const body = (await response.json().catch(() => ({}))) as {
     error?: string;
@@ -190,4 +205,29 @@ export function invalidateApiCache() {
   responseCache.clear();
   pendingRequests.clear();
   clearStoredApiCache();
+}
+
+
+let restoringSession: Promise<SessionUser | null> | null = null;
+export function restoreSession(): Promise<SessionUser | null> {
+  if (typeof window === 'undefined' || localStorage.getItem('fanmilk_signed_out') === '1') return Promise.resolve(null);
+  if (restoringSession) return restoringSession;
+  restoringSession = (async () => {
+    const response = await fetchWithTimeout(`${API_URL}/api/auth/session`, {
+      method: 'POST', credentials: 'include', headers: { 'X-FanMilk-Session': '1' },
+    });
+    if (response.status === 401) { clearSession(false); return null; }
+    const result = await response.json() as { error?: string; access_token: string; user: SessionUser };
+    if (!response.ok) throw new Error(result.error || 'Connexion au serveur momentanément indisponible.');
+    // Do not resurrect a session if logout occurred while the request was pending.
+    if (localStorage.getItem('fanmilk_signed_out') === '1') return null;
+    saveSession(result.access_token, result.user);
+    return result.user as SessionUser;
+  })().finally(() => { restoringSession = null; });
+  return restoringSession;
+}
+
+export async function ensureSession() {
+  if (localStorage.getItem('fanmilk_signed_out') === '1') { clearSession(false); return false; }
+  return Boolean(getToken() || await restoreSession());
 }
