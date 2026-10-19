@@ -413,7 +413,8 @@ export function DepositaireDashboard({
       setRejecting(null);
       setReason('');
       setNotice(`Vente #${target.id} et stock associé rejetés.`);
-      await loadDashboard(true);
+      setSales(current => current.filter(sale => sale.id !== target.id));
+      void loadDashboard(true);
     } catch (error) {
       setLoadError(error instanceof Error ? error.message : 'Rejet impossible.');
     } finally { setBusyAction(null); }

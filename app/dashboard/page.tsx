@@ -4,8 +4,9 @@ import { DifficultyFollowup } from '@/components/difficulty-followup';
 import { AdminPermissions } from '@/components/admin-permissions';
 import type { SessionUser } from '@/lib/api';
 import { updateStoredUser } from '@/lib/api';
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import {
+  X,
   AlertTriangle,
   Activity,
   Award,
@@ -102,6 +103,14 @@ type AiMessage = {
   text: string;
 };
 
+type VendorSale = {
+  id: number;
+  declaredAt: string;
+  amount: number;
+  location: string;
+  status: string;
+  lines: Array<{ sku: string; product: string; quantity: number }>;
+};
 type Issue = {
   id: number;
   seller: string;
@@ -242,6 +251,11 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
   const isPrimary = Boolean(sessionUser?.is_primary_admin);
   const [activeView, setActiveView] = useState<AdminView>(view);
   const [accounts, setAccounts] = useState(initialAccounts);
+  const vendorRequest = useRef(0);
+  const [selectedVendor, setSelectedVendor] = useState<VendorRow | null>(null);
+  const [vendorSales, setVendorSales] = useState<VendorSale[]>([]);
+  const [vendorSalesLoading, setVendorSalesLoading] = useState(false);
+  const [vendorSalesError, setVendorSalesError] = useState('');
   const [issues, setIssues] = useState(initialIssues);
   const [showAccountForm, setShowAccountForm] = useState(false);
   const [accountRole, setAccountRole] =
@@ -642,7 +656,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
     })
       .then(async () => {
         invalidateApiCache();
-        await loadDashboard(true);
+        void loadDashboard(true);
         setShowAccountForm(false);
         setAccountRole('administrateur');
         setNotice('Compte créé. Mot de passe temporaire : FanMilk-Temp-2026!');
@@ -675,7 +689,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
         }),
       });
       invalidateApiCache();
-      await loadDashboard(true);
+      void loadDashboard(true);
       setEditingAccount(null);
       setNotice('Profil utilisateur modifié avec succès.');
     } catch (error) {
@@ -685,6 +699,42 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
     }
   }
 
+  async function openVendorDetails(vendor: VendorRow) {
+    const requestId = ++vendorRequest.current;
+    setSelectedVendor(vendor);
+    setVendorSales([]);
+    setVendorSalesLoading(true);
+    setVendorSalesError('');
+    try {
+      const rows = await apiFetch<any[]>(`/api/admin/sales?vendor_phone=${encodeURIComponent(vendor.phone)}`);
+      if (requestId !== vendorRequest.current) return;
+      setVendorSales(
+        rows
+          .filter((row) => row.vendor?.phone === vendor.phone)
+          .map((row) => ({
+            id: row.id,
+            declaredAt: row.declared_at,
+            amount: Number(row.amount || 0),
+            location: row.location || 'Non précisé',
+            status: row.status,
+            lines: (row.lines ?? []).map((line: any) => ({
+              sku: line.sku,
+              product: line.product,
+              quantity: Number(line.quantity || 0),
+            })),
+          })),
+      );
+    } catch (error) {
+      if (requestId !== vendorRequest.current) return;
+      setVendorSalesError(
+        error instanceof Error
+          ? error.message
+          : 'Impossible de charger les ventes de ce revendeur.',
+      );
+    } finally {
+      if (requestId === vendorRequest.current) setVendorSalesLoading(false);
+    }
+  }
   async function assignPrize(saleId: number, seller: string) {
     setActionError('');
     try {
@@ -693,7 +743,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
         body: JSON.stringify({ sale_id: saleId }),
       });
       invalidateApiCache();
-      await loadDashboard(true);
+      void loadDashboard(true);
       setNotice(`Prime de 500 FCFA attribuée à ${seller} pour cette vente.`);
     } catch (error) {
       setActionError(
@@ -718,7 +768,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
         body: JSON.stringify({ active: !row.active }),
       });
       invalidateApiCache();
-      await loadDashboard(true);
+      void loadDashboard(true);
       setNotice(`Compte ${row.active ? 'suspendu' : 'réactivé'}.`);
     } catch (error) {
       setActionError(
@@ -732,7 +782,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
     try {
       const result = await apiFetch<{ message: string }>(`/api/admin/users/${row.id}/reset-mfa`, { method: 'POST' });
       invalidateApiCache();
-      await loadDashboard(true);
+      void loadDashboard(true);
       setNotice(result.message);
     } catch (error) {
       setActionError(error instanceof Error ? error.message : 'Réinitialisation impossible.');
@@ -1568,7 +1618,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                   <TableBody>
                     {vendors.map((row) => (
                       <TableRow key={row.phone}>
-                        <TableCell className="font-bold">{row.name}</TableCell>
+                        <TableCell className="font-bold">{can("donnees.view") ? <button className="text-blue-700 underline underline-offset-4" onClick={() => void openVendorDetails(row)}>{row.name}</button> : row.name}</TableCell>
                         <TableCell>{row.phone}</TableCell>
                         <TableCell>{row.depot}</TableCell>
                         <TableCell>{row.salesCount}</TableCell>
@@ -2037,7 +2087,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                         </p>
                         <div className="mt-3 flex flex-col gap-3">
                           <small className="text-slate-400">{row.date}</small>
-                          <DifficultyFollowup issue={row} assignees={assignees} editable={can('difficultes.edit')} onSaved={() => loadDashboard(true)} />
+                          <DifficultyFollowup issue={row} assignees={assignees} editable={can('difficultes.edit')} onSaved={(updated) => { setIssues(current => current.map(item => item.id === updated.id ? {...item, state: updated.state, action_plan: updated.action_plan, assigned_admin: updated.assigned_admin} : item)); setNotice("Suivi enregistré."); }} />
 
                         </div>
                       </div>
@@ -2131,6 +2181,80 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
           )}
         </div>
       </section>
+      {selectedVendor && (
+        <div className="fixed inset-0 z-[110] grid place-items-center overflow-y-auto bg-[#07162f]/70 p-4 backdrop-blur-sm sm:p-6">
+          <Card className="my-auto max-h-[92vh] w-full max-w-5xl overflow-hidden border-0 bg-white shadow-2xl">
+            <CardHeader className="border-b bg-gradient-to-r from-[#082f70] to-[#0a4ea8] p-5 text-white sm:p-7">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex min-w-0 items-center gap-4">
+                  <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-white/15 text-lg font-black ring-1 ring-white/20">
+                    {selectedVendor.name.slice(0, 2).toUpperCase()}
+                  </span>
+                  <div className="min-w-0">
+                    <CardTitle className="truncate text-2xl font-black text-white sm:text-3xl">{selectedVendor.name}</CardTitle>
+                    <CardDescription className="mt-1 text-blue-100">
+                      {selectedVendor.depot} · WhatsApp {selectedVendor.phone}
+                    </CardDescription>
+                  </div>
+                </div>
+                <Button type="button" variant="ghost" size="icon" aria-label="Fermer la fiche du revendeur" onClick={() => { vendorRequest.current++; setSelectedVendor(null); }} className="shrink-0 text-white hover:bg-white/15 hover:text-white">
+                  <X className="size-5" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="max-h-[calc(92vh-118px)] overflow-y-auto p-5 sm:p-7">
+              {vendorSalesError && <p role="alert" className="mb-4 text-red-700">{vendorSalesError}</p>}
+              {!vendorSalesLoading && !vendorSalesError && (
+                <div className="mb-6 grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-2xl bg-blue-50 p-4"><p className="text-xs font-bold text-slate-500">VENTES</p><p className="mt-1 text-2xl font-black text-[#082f70]">{vendorSales.length}</p></div>
+                  <div className="rounded-2xl bg-emerald-50 p-4"><p className="text-xs font-bold text-slate-500">CHIFFRE D’AFFAIRES</p><p className="mt-1 text-2xl font-black text-emerald-700">{vendorSales.reduce((total, sale) => total + sale.amount, 0).toLocaleString('fr-FR')} FCFA</p></div>
+                  <div className="rounded-2xl bg-violet-50 p-4"><p className="text-xs font-bold text-slate-500">PRODUITS VENDUS</p><p className="mt-1 text-2xl font-black text-violet-700">{vendorSales.reduce((total, sale) => total + sale.lines.reduce((sum, line) => sum + line.quantity, 0), 0)}</p></div>
+                </div>
+              )}
+              <div className="grid gap-4 lg:grid-cols-2">
+            {vendorSalesLoading && (
+              <div className="flex items-center gap-3 rounded-xl bg-blue-50 p-4 text-sm text-blue-900 lg:col-span-2">
+                <RefreshCw className="size-4 animate-spin" />
+                Chargement des ventes…
+              </div>
+            )}
+            {!vendorSalesLoading && vendorSales.map((sale) => (
+              <article key={sale.id} className="rounded-2xl border border-slate-200 p-4 shadow-sm">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <strong>Vente V-{sale.id}</strong>
+                    <p className="text-xs text-slate-500">
+                      {new Date(sale.declaredAt).toLocaleString('fr-FR')} · {sale.location}
+                    </p>
+                  </div>
+                  <Badge variant="outline">{sale.status.replaceAll('_', ' ')}</Badge>
+                </div>
+                <p className="mt-3 text-xl font-black text-[#082f70]">
+                  {sale.amount.toLocaleString('fr-FR')} FCFA
+                </p>
+                <div className="mt-3 space-y-1 rounded-xl bg-slate-50 p-3 text-sm">
+                  {sale.lines.map((line) => (
+                    <div key={`${sale.id}-${line.sku}`} className="flex justify-between gap-3">
+                      <span>{line.product} <small className="text-slate-400">({line.sku})</small></span>
+                      <strong>{line.quantity}</strong>
+                    </div>
+                  ))}
+                  {sale.lines.length === 0 && (
+                    <span className="text-slate-500">Aucun produit détaillé.</span>
+                  )}
+                </div>
+              </article>
+            ))}
+            {!vendorSalesLoading && selectedVendor && !vendorSalesError && vendorSales.length === 0 && (
+              <p className="rounded-xl bg-slate-50 p-5 text-center text-sm text-slate-500 lg:col-span-2">
+                Aucune vente enregistrée pour ce revendeur.
+              </p>
+            )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
       {rightsAccount && <AdminPermissions account={rightsAccount} onClose={() => setRightsAccount(null)} onSaved={() => { setRightsAccount(null); setNotice("Droits enregistrés. Ils s’appliquent immédiatement aux prochaines demandes."); void loadDashboard(true); }} />}
       {editingAccount && (
         <div className="fixed inset-0 z-[100] grid place-items-center overflow-y-auto bg-[#07162f]/65 p-5 backdrop-blur-sm">
