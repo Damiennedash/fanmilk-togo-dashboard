@@ -103,8 +103,8 @@ const depositaireViewMeta: Record<
     description: 'Validez ou rejetez les ventes déclarées par vos revendeurs.',
   },
   stocks: {
-    title: 'Stocks à valider',
-    description: 'Contrôlez les déclarations de stock de votre dépôt.',
+    title: 'Stocks associés aux ventes',
+    description: 'Consultez les quantités déclarées avec chaque vente de votre dépôt.',
   },
   performances: {
     title: 'Performances des revendeurs',
@@ -168,7 +168,7 @@ export function DepositaireDashboard({
   const [sales, setSales] = useState(initialSales);
   const [stocks, setStocks] = useState(initialStocks);
   const [rejecting, setRejecting] = useState<{
-    type: 'sale' | 'stock';
+    type: 'sale';
     id: number;
   } | null>(null);
   const [reason, setReason] = useState('');
@@ -212,8 +212,6 @@ export function DepositaireDashboard({
   const [selectedMonth, setSelectedMonth] = useState(
     `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`,
   );
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
   const [productTotals, setProductTotals] = useState<
     Array<{ sku: string; name: string; quantity: number }>
   >([]);
@@ -258,7 +256,7 @@ export function DepositaireDashboard({
         rows.map((row) => ({
           id: row.id,
           seller: row.vendor.name,
-          product: `${row.product.name} (${row.product.sku})`,
+          product: row.lines?.map((line: any) => `${line.sku} × ${line.quantity}`).join(' · ') || row.product.name,
           quantity: row.quantity,
           date: new Date(row.declared_at).toLocaleString('fr-FR'),
           status: row.status,
@@ -281,8 +279,6 @@ export function DepositaireDashboard({
         );
       } else if (activeView === 'stocks') {
         const productParams = new URLSearchParams({ period: selectedMonth });
-        if (dateFrom) productParams.set('date_from', dateFrom);
-        if (dateTo) productParams.set('date_to', dateTo);
         const [apiStocks, totals, breakdown] = await Promise.all([
           cached<any[]>('/api/depositaire/stocks?status=en_attente'),
           cached<any[]>(`/api/depositaire/product-totals?${productParams.toString()}`),
@@ -353,7 +349,7 @@ export function DepositaireDashboard({
     }).catch(error => { setLoadError(error instanceof Error ? error.message : 'Serveur indisponible. Réessayez.'); });
     const refreshTimer = window.setInterval(() => loadDashboard(true), 30000);
     return () => window.clearInterval(refreshTimer);
-  }, [activeView, selectedMonth, dateFrom, dateTo]);
+  }, [activeView, selectedMonth]);
 
   useEffect(() => {
     if (!notice && !loadError) return;
@@ -390,7 +386,7 @@ export function DepositaireDashboard({
         body: JSON.stringify({ action: 'validate' }),
       });
       invalidateApiCache();
-      setNotice(`Vente #${id} validée et notification transmise à Vendor‑Bot.`);
+      setNotice(`Vente #${id} et stock associé validés.`);
       void loadDashboard(true);
     } catch (error) {
       setSales(previousSales);
@@ -405,92 +401,22 @@ export function DepositaireDashboard({
       setBusyAction(null);
     }
   }
-  async function validateStock(id: number) {
-    const previousStocks = stocks;
-    setBusyAction(`stock-${id}`);
-    setStocks((current) => current.filter((stock) => stock.id !== id));
-    setSummary((current) => ({
-      ...current,
-      pending_stocks: Math.max(0, current.pending_stocks - 1),
-    }));
-    setNotice(`Validation du stock #${id} en cours…`);
-    try {
-      await apiFetch(`/api/depositaire/stocks/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ action: 'validate' }),
-      });
-      invalidateApiCache();
-      setNotice(`Stock #${id} validé et notification transmise à Vendor‑Bot.`);
-      void loadDashboard(true);
-    } catch (error) {
-      setStocks(previousStocks);
-      setSummary((current) => ({
-        ...current,
-        pending_stocks: current.pending_stocks + 1,
-      }));
-      setLoadError(
-        error instanceof Error ? error.message : 'Validation impossible.',
-      );
-    } finally {
-      setBusyAction(null);
-    }
-  }
   async function confirmReject() {
     if (!rejecting || !reason.trim()) return;
     const target = rejecting;
-    const previousSales = sales;
-    const previousStocks = stocks;
-    setBusyAction(`${target.type}-${target.id}`);
-    if (target.type === 'sale') {
-      setSales((current) => current.filter((sale) => sale.id !== target.id));
-      setSummary((current) => ({
-        ...current,
-        pending_sales: Math.max(0, current.pending_sales - 1),
-      }));
-    } else {
-      setStocks((current) => current.filter((stock) => stock.id !== target.id));
-      setSummary((current) => ({
-        ...current,
-        pending_stocks: Math.max(0, current.pending_stocks - 1),
-      }));
-    }
-    setRejecting(null);
-    setNotice(
-      `Rejet ${target.type === 'sale' ? 'de la vente' : 'du stock'} #${target.id} en cours…`,
-    );
+    setBusyAction(`sale-${target.id}`);
     try {
-      await apiFetch(
-        `/api/depositaire/${target.type === 'sale' ? 'sales' : 'stocks'}/${target.id}`,
-        {
-          method: 'PATCH',
-          body: JSON.stringify({ action: 'reject', reason: reason.trim() }),
-        },
-      );
+      await apiFetch(`/api/depositaire/sales/${target.id}`, {
+        method: 'PATCH', body: JSON.stringify({action: 'reject', reason: reason.trim()}),
+      });
       invalidateApiCache();
-      setNotice(
-        `${target.type === 'sale' ? 'Vente' : 'Stock'} #${target.id} rejeté. Motif transmis via Vendor‑Bot.`,
-      );
+      setRejecting(null);
       setReason('');
-      void loadDashboard(true);
+      setNotice(`Vente #${target.id} et stock associé rejetés.`);
+      await loadDashboard(true);
     } catch (error) {
-      setSales(previousSales);
-      setStocks(previousStocks);
-      setSummary((current) => ({
-        ...current,
-        pending_sales:
-          target.type === 'sale'
-            ? current.pending_sales + 1
-            : current.pending_sales,
-        pending_stocks:
-          target.type === 'stock'
-            ? current.pending_stocks + 1
-            : current.pending_stocks,
-      }));
-      setRejecting(target);
       setLoadError(error instanceof Error ? error.message : 'Rejet impossible.');
-    } finally {
-      setBusyAction(null);
-    }
+    } finally { setBusyAction(null); }
   }
 
   return (
@@ -666,7 +592,7 @@ export function DepositaireDashboard({
                 ? [
                     {
                       title: `${summary.pending_stocks} stock${summary.pending_stocks > 1 ? 's' : ''} à vérifier`,
-                      description: 'Des stocks attendent votre validation.',
+                      description: 'Ces stocks suivent les ventes à vérifier.',
                       href: '/depositaire/stocks',
                     },
                   ]
@@ -864,8 +790,6 @@ export function DepositaireDashboard({
                   className="w-auto bg-white"
                   aria-label="Mois des stocks vendus"
                 />
-                <Input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} className="w-auto bg-white" aria-label="Date de début" />
-                <Input type="date" value={dateTo} min={dateFrom || undefined} onChange={(event) => setDateTo(event.target.value)} className="w-auto bg-white" aria-label="Date de fin" />
               </div>
               <div className="grid gap-4 sm:grid-cols-3">
                 {productTotals.map((product) => {
@@ -893,9 +817,9 @@ export function DepositaireDashboard({
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle>Stocks à valider</CardTitle>
+                    <CardTitle>Stocks liés aux ventes en attente</CardTitle>
                     <CardDescription>
-                      Déclarations transmises par les revendeurs du dépôt
+                      Une ligne par vente : les trois SKU suivent la validation ou le rejet de la vente.
                     </CardDescription>
                   </div>
                   <Badge className="bg-violet-50 text-violet-700">
@@ -908,10 +832,10 @@ export function DepositaireDashboard({
                   <TableHeader>
                     <TableRow>
                       <TableHead>Revendeur</TableHead>
-                      <TableHead>Produit</TableHead>
+                      <TableHead>Détail des trois SKU</TableHead>
                       <TableHead>Quantité</TableHead>
                       <TableHead>Date</TableHead>
-                      <TableHead className="text-right">Décision</TableHead>
+                      <TableHead className="text-right">Statut lié à la vente</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -925,38 +849,7 @@ export function DepositaireDashboard({
                           {row.quantity} unités
                         </TableCell>
                         <TableCell>{row.date}</TableCell>
-                        <TableCell>
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              size="sm"
-                              disabled={busyAction !== null}
-                              onClick={() => validateStock(row.id)}
-                              className="bg-emerald-600 hover:bg-emerald-700"
-                            >
-                              {busyAction === `stock-${row.id}` ? (
-                                <LoaderCircle className="animate-spin" />
-                              ) : (
-                                <Check />
-                              )}
-                              {busyAction === `stock-${row.id}`
-                                ? 'Validation…'
-                                : 'Valider'}
-                            </Button>
-                            <Button
-                              size="sm"
-                              disabled={busyAction !== null}
-                              variant="outline"
-                              onClick={() => {
-                                setRejecting({ type: 'stock', id: row.id });
-                                setReason('');
-                              }}
-                              className="border-red-200 text-red-700"
-                            >
-                              <X />
-                              Rejeter
-                            </Button>
-                          </div>
-                        </TableCell>
+                        <TableCell className="text-right text-slate-500">En attente de la vente V-{row.id}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

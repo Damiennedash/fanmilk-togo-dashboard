@@ -285,8 +285,6 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
     `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, '0')}`;
   const [selectedMonth, setSelectedMonth] = useState(monthKey(now));
   const [selectedDepot, setSelectedDepot] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
   const [difficultyDay, setDifficultyDay] = useState('');
   const [difficultyMonth, setDifficultyMonth] = useState('');
   const [difficultyStatus, setDifficultyStatus] = useState<Issue['state'] | ''>('');
@@ -345,8 +343,6 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
       const depotQuery = selectedDepot ? `?depot_id=${selectedDepot}` : '';
       const query = new URLSearchParams();
       if (selectedDepot) query.set('depot_id', selectedDepot);
-      if (dateFrom) query.set('date_from', dateFrom);
-      if (dateTo) query.set('date_to', dateTo);
       const filteredQuery = query.size ? `?${query.toString()}` : '';
 
       if (activeView === 'pilotage') {
@@ -376,7 +372,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
             ref: `S-${row.id}`,
             seller: row.vendor.name,
             depot: row.depot.name,
-            detail: `${row.product.sku} · ${row.quantity} unités`,
+            detail: `${(row.lines ?? []).map((line: any) => `${line.sku} × ${line.quantity}`).join(' · ')} · ${row.quantity} unités`,
             status: row.status,
             date: row.declared_at,
           })),
@@ -537,7 +533,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
             ref: `S-${row.id}`,
             seller: row.vendor.name,
             depot: row.depot.name,
-            detail: `${row.product.sku} · ${row.quantity} unités`,
+            detail: `${(row.lines ?? []).map((line: any) => `${line.sku} × ${line.quantity}`).join(' · ')} · ${row.quantity} unités`,
             status: row.status,
             date: row.declared_at,
           })),
@@ -566,7 +562,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
     }).catch(error => { setLoadError(error instanceof Error ? error.message : 'Serveur indisponible. Réessayez.'); });
     const refreshTimer = window.setInterval(() => loadDashboard(true), 30000);
     return () => window.clearInterval(refreshTimer);
-  }, [activeView, selectedMonth, selectedDepot, dateFrom, dateTo, difficultyDay, difficultyMonth]);
+  }, [activeView, selectedMonth, selectedDepot, difficultyDay, difficultyMonth]);
 
   useEffect(() => {
     const syncViewWithUrl = () => {
@@ -974,25 +970,6 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                   aria-label="Jour"
                   title="Filtrer sur un jour précis"
                 />
-              )}
-              {(activeView === 'donnees' || activeView === 'analyses') && (
-                <>
-                  <Input
-                    type="date"
-                    value={dateFrom}
-                    onChange={(event) => setDateFrom(event.target.value)}
-                    className="h-10 w-auto bg-white"
-                    aria-label="Date de début"
-                  />
-                  <Input
-                    type="date"
-                    value={dateTo}
-                    min={dateFrom || undefined}
-                    onChange={(event) => setDateTo(event.target.value)}
-                    className="h-10 w-auto bg-white"
-                    aria-label="Date de fin"
-                  />
-                </>
               )}
               <select
                 value={activeView === 'difficultes' ? difficultyMonth : selectedMonth}
