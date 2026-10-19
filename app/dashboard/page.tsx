@@ -1,4 +1,5 @@
 'use client';
+import { DifficultyFollowup } from '@/components/difficulty-followup';
 
 import { AdminPermissions } from '@/components/admin-permissions';
 import type { SessionUser } from '@/lib/api';
@@ -22,6 +23,7 @@ import {
   Settings,
   Users,
   UserRoundSearch,
+  Sparkles, MessageSquareText, Send,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -94,6 +96,12 @@ type VendorRow = {
   lastSalesAmount: number;
   lastDeclarationAt?: string | null;
 };
+type AiMessage = {
+  id: number;
+  role: 'assistant' | 'user';
+  text: string;
+};
+
 type Issue = {
   id: number;
   seller: string;
@@ -102,6 +110,8 @@ type Issue = {
   description: string;
   date: string;
   state: 'ouverte' | 'en_cours' | 'resolue';
+  action_plan?: string;
+  assigned_admin?: {id: number; name: string} | null;
 };
 type Performance = {
   seller: string;
@@ -277,6 +287,16 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
   const [auditRows, setAuditRows] = useState<any[]>([]);
   const [deliveryRows, setDeliveryRows] = useState<any[]>([]);
   const [systemStatus, setSystemStatus] = useState<any>(null);
+  const [aiQuestion, setAiQuestion] = useState('');
+  const [aiThinking, setAiThinking] = useState(false);
+  const [aiMessages, setAiMessages] = useState<AiMessage[]>([
+    {
+      id: 1,
+      role: 'assistant',
+      text: 'Bonjour ! Posez-moi une question sur les problèmes signalés, les urgences, les revendeurs concernés ou les actions à mener.',
+    },
+  ]);
+  const [assignees, setAssignees] = useState<Array<{id:number; name:string}>>([]);
   const [adminName, setAdminName] = useState('Administrateur');
   const [loadError, setLoadError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -417,18 +437,40 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
         );
       } else if (activeView === 'analyses') {
         const separator = selectedDepot ? '&' : '?';
-        const [nextAnalytics, nextAudit, nextDeliveries, apiDepots, nextSystem] = await Promise.all([
+        const auditParams = new URLSearchParams();
+        if (selectedDepot) auditParams.set('depot_id', selectedDepot);
+        const [year, month] = selectedMonth.split('-').map(Number);
+        auditParams.set('date_from', `${selectedMonth}-01`);
+        auditParams.set(
+          'date_to',
+          new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10),
+        );
+        const [nextAnalytics, nextAudit, nextDeliveries, apiDepots, nextSystem, nextIssues] = await Promise.all([
           cached<Analytics>(`/api/admin/analytics${depotQuery}${separator}period=${selectedMonth}`),
-          cached<any[]>(`/api/admin/audit${filteredQuery}`),
+          cached<any[]>(`/api/admin/audit?${auditParams.toString()}`),
           cached<any[]>('/api/admin/notifications?limit=100'),
           cached<any[]>('/api/admin/depots'),
           cached<any>('/api/admin/system-status'),
+          cached<any[]>(`/api/admin/difficulties?${auditParams.toString()}`),
         ]);
         setAnalytics(nextAnalytics);
         setAuditRows(nextAudit);
         setDeliveryRows(nextDeliveries);
         setDepots(apiDepots);
         setSystemStatus(nextSystem);
+        setIssues(
+          nextIssues.map((row) => ({
+            id: row.id,
+            seller: row.vendor.name,
+            depot: row.depot.name,
+            category: row.category,
+            description: row.description,
+            date: new Date(row.reported_at).toLocaleDateString('fr-FR'),
+            state: row.state,
+            action_plan: row.action_plan,
+            assigned_admin: row.assigned_admin,
+          })),
+        );
       } else if (activeView === 'performances') {
         const separator = selectedDepot ? '&' : '?';
         const [apiPerformances, apiBonuses, apiDepots] = await Promise.all([
@@ -476,6 +518,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
           })),
         );
       } else if (activeView === 'difficultes') {
+        setAssignees(await cached<Array<{id:number; name:string}>>('/api/admin/difficulty-assignees'));
         const difficultyParams = new URLSearchParams();
         if (selectedDepot) difficultyParams.set('depot_id', selectedDepot);
         if (difficultyDay) {
@@ -503,6 +546,8 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
             description: row.description,
             date: new Date(row.reported_at).toLocaleDateString('fr-FR'),
             state: row.state,
+            action_plan: row.action_plan,
+            assigned_admin: row.assigned_admin,
           })),
         );
       } else if (activeView === 'donnees') {
@@ -640,19 +685,6 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
     }
   }
 
-  async function nextIssueState(id: number) {
-    const row = issues.find((item) => item.id === id);
-    if (!row) return;
-    await apiFetch(`/api/admin/difficulties/${id}`, {
-      method: 'PATCH',
-      body: JSON.stringify({
-        state: row.state === 'ouverte' ? 'en_cours' : 'resolue',
-      }),
-    });
-    invalidateApiCache();
-    await loadDashboard(true);
-    setNotice('État de la difficulté enregistré.');
-  }
   async function assignPrize(saleId: number, seller: string) {
     setActionError('');
     try {
@@ -756,6 +788,148 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
   const visibleIssues = difficultyStatus
     ? issues.filter((item) => item.state === difficultyStatus)
     : issues;
+
+  useEffect(() => { setAiMessages([{id: 1, role: 'assistant', text: 'Posez une question sur les données de cette sélection.'}]); }, [selectedMonth, selectedDepot]);
+
+  useEffect(() => {
+    if (activeView !== 'difficultes' || !/^#difficulty-\d+$/.test(window.location.hash)) return;
+    document.getElementById(window.location.hash.slice(1))?.scrollIntoView({block: 'center'});
+  }, [issues, activeView]);
+
+  const issueThemes = Object.entries(
+    issues.reduce<Record<string, number>>((totals, issue) => {
+      const theme = issue.category?.trim() || 'Autre difficulté';
+      totals[theme] = (totals[theme] ?? 0) + 1;
+      return totals;
+    }, {}),
+  ).sort((a, b) => b[1] - a[1]);
+  const urgentIssues = issues.filter((issue) => issue.state !== 'resolue' &&
+    /urgent|danger|sécurit|paiement|argent|rupture|stock|panne|équipement|gérant|support/i.test(
+      `${issue.category} ${issue.description}`,
+    ),
+  );
+  const openIssuesCount = issues.filter((issue) => issue.state !== 'resolue').length;
+  const resolvedIssuesCount = issues.filter((issue) => issue.state === 'resolue').length;
+  const issueRecommendations = Array.from(
+    new Set(
+      issueThemes.slice(0, 4).map(([theme]) => {
+        const normalized = theme.toLowerCase();
+        if (normalized.includes('paiement')) return 'Vérifier rapidement les paiements concernés et confirmer la régularisation au revendeur.';
+        if (normalized.includes('produit') || normalized.includes('stock')) return 'Contrôler la disponibilité des produits et anticiper le réapprovisionnement du dépôt.';
+        if (normalized.includes('équipement') || normalized.includes('equipement')) return 'Planifier une vérification du matériel et suivre la résolution avec le dépositaire.';
+        if (normalized.includes('gérant') || normalized.includes('gerant')) return 'Escalader le dossier au responsable du dépôt et documenter la réponse apportée.';
+        if (normalized.includes('conseil') || normalized.includes('vente')) return 'Prévoir un accompagnement commercial ciblé pour les revendeurs concernés.';
+        return `Examiner les signalements « ${theme} » et désigner un responsable de suivi.`;
+      }),
+    ),
+  );
+
+  async function answerIssueQuestion(question: string) {
+    const normalized = question
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+    const monthNames = [
+      'janvier', 'fevrier', 'mars', 'avril', 'mai', 'juin',
+      'juillet', 'aout', 'septembre', 'octobre', 'novembre', 'decembre',
+    ];
+    const requestedMonthIndex = monthNames.findIndex((month) => normalized.includes(month));
+    const requestedYear = normalized.match(/20\d{2}/)?.[0] ?? selectedMonth.slice(0, 4);
+    const requestedPeriod = requestedMonthIndex >= 0
+      ? `${requestedYear}-${String(requestedMonthIndex + 1).padStart(2, '0')}`
+      : selectedMonth;
+
+    if (/chiffre d.?affaires|\bca\b|revenu|recette/.test(normalized)) {
+      let periodAnalytics = analytics;
+      if (requestedPeriod !== selectedMonth || !periodAnalytics) {
+        const params = new URLSearchParams({ period: requestedPeriod });
+        if (selectedDepot) params.set('depot_id', selectedDepot);
+        periodAnalytics = await apiFetch<Analytics>(`/api/admin/analytics?${params.toString()}`);
+      }
+      const label = new Date(`${requestedPeriod}-01T12:00:00`).toLocaleDateString('fr-FR', {
+        month: 'long',
+        year: 'numeric',
+      });
+      const scope = selectedDepot
+        ? `pour le dépôt ${depots.find((depot) => String(depot.id) === selectedDepot)?.name ?? 'sélectionné'}`
+        : 'pour l’ensemble du réseau';
+      return `Le chiffre d’affaires validé de ${label} est de ${periodAnalytics?.current_revenue.toLocaleString('fr-FR') ?? '0'} FCFA ${scope}. Il correspond à ${periodAnalytics?.validated_sales ?? 0} vente(s) validée(s), avec ${periodAnalytics?.pending_sales ?? 0} vente(s) encore en attente.`;
+    }
+    if (/vente.*validee|vente.*attente|combien.*vente|nombre.*vente/.test(normalized)) {
+      const label = new Date(`${selectedMonth}-01T12:00:00`).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+      return `Pour ${label}, il y a ${analytics?.validated_sales ?? 0} vente(s) validée(s) et ${analytics?.pending_sales ?? 0} vente(s) en attente.`;
+    }
+    if (/classement|meilleur|premier|plus performant/.test(normalized)) {
+      const leaders = analytics?.vendor_ranking.slice(0, 3) ?? [];
+      return leaders.length
+        ? `Les meilleurs revendeurs de la période sont : ${leaders.map((row, index) => `${index + 1}. ${row.name} — ${row.amount.toLocaleString('fr-FR')} FCFA`).join(' ; ')}.`
+        : 'Aucun classement de revendeurs n’est disponible pour cette sélection.';
+    }
+    if (issues.length === 0) {
+      return 'Aucune difficulté n’est enregistrée pour le dépôt et la période sélectionnés. Modifiez les filtres pour analyser une autre sélection.';
+    }
+    if (/urgent|prioritaire|priorité|attention/.test(normalized)) {
+      if (urgentIssues.length === 0) return 'Je ne détecte aucun commentaire prioritaire dans cette sélection.';
+      return `J’ai détecté ${urgentIssues.length} commentaire(s) prioritaire(s) : ${urgentIssues
+        .slice(0, 4)
+        .map((issue) => `${issue.seller} (${issue.depot}) — ${issue.category} : ${issue.description || 'sans précision'}`)
+        .join(' ; ')}.`;
+    }
+    if (/résolu|resolu|statut|ouvert|cours/.test(normalized)) {
+      return `Sur ${issues.length} signalement(s), ${openIssuesCount} restent à traiter et ${resolvedIssuesCount} sont résolus. Le taux de résolution est de ${Math.round((resolvedIssuesCount * 100) / issues.length)} %.`;
+    }
+    if (/thème|theme|problème|probleme|fréquent|frequent|récurrent|recurrent/.test(normalized)) {
+      return `Les thèmes les plus fréquents sont : ${issueThemes
+        .slice(0, 5)
+        .map(([theme, count]) => `${theme} (${count})`)
+        .join(', ')}.`;
+    }
+    if (/action|faire|solution|recommand|conseil/.test(normalized)) {
+      return issueRecommendations.length
+        ? `Voici mes recommandations : ${issueRecommendations.map((item, index) => `${index + 1}. ${item}`).join(' ')}`
+        : 'Aucune action particulière n’est nécessaire pour cette sélection.';
+    }
+    if (/revendeur|client|personne|qui/.test(normalized)) {
+      const sellers = Object.entries(
+        issues.reduce<Record<string, number>>((totals, issue) => {
+          totals[issue.seller] = (totals[issue.seller] ?? 0) + 1;
+          return totals;
+        }, {}),
+      ).sort((a, b) => b[1] - a[1]);
+      return `Les revendeurs concernés sont : ${sellers.map(([name, count]) => `${name} (${count} signalement${count > 1 ? 's' : ''})`).join(', ')}.`;
+    }
+    if (/dépôt|depot|lieu|zone/.test(normalized)) {
+      const byDepot = Object.entries(
+        issues.reduce<Record<string, number>>((totals, issue) => {
+          totals[issue.depot] = (totals[issue.depot] ?? 0) + 1;
+          return totals;
+        }, {}),
+      ).sort((a, b) => b[1] - a[1]);
+      return `Répartition par dépôt : ${byDepot.map(([depot, count]) => `${depot} (${count})`).join(', ')}.`;
+    }
+    const mainTheme = issueThemes[0];
+    return `J’ai analysé ${issues.length} signalement(s) : ${openIssuesCount} sont encore à traiter${mainTheme ? ` et le thème principal est « ${mainTheme[0]} » avec ${mainTheme[1]} cas` : ''}. Vous pouvez me demander les urgences, les thèmes récurrents, les revendeurs concernés ou les actions recommandées.`;
+  }
+
+  async function askIssueAssistant(question: string) {
+    const cleanQuestion = question.trim();
+    if (!cleanQuestion || aiThinking) return;
+    const messageId = Date.now();
+    setAiMessages((messages) => [...messages, { id: messageId, role: 'user', text: cleanQuestion }]);
+    setAiQuestion('');
+    setAiThinking(true);
+    try {
+      const answer = await answerIssueQuestion(cleanQuestion);
+      setAiMessages((messages) => [...messages, { id: messageId + 1, role: 'assistant', text: answer }]);
+    } catch {
+      setAiMessages((messages) => [
+        ...messages,
+        { id: messageId + 1, role: 'assistant', text: 'Je n’ai pas pu consulter les données demandées. Vérifiez la période ou réessayez dans un instant.' },
+      ]);
+    } finally {
+      setAiThinking(false);
+    }
+  }
 
   if (!sessionUser || !can(`${activeView}.view`)) return (
     <main className="min-h-screen bg-slate-50 p-8 text-slate-900"><h1 className="text-xl font-bold">Espace administrateur</h1>
@@ -1451,6 +1625,137 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                 <Button variant="outline" onClick={exportAnalyticsCsv}><FileDown /> Exporter Excel (CSV)</Button>
                 <Button variant="outline" onClick={() => window.print()}><Printer /> Imprimer / PDF</Button>
               </div>
+              {can('difficultes.view') && (
+              <Card className="overflow-hidden border-0 bg-gradient-to-br from-[#082f70] via-[#0a4ea8] to-[#1976d2] text-white shadow-xl shadow-blue-950/15">
+                <CardHeader className="border-b border-white/15">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="flex items-start gap-3">
+                      <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-white/15 ring-1 ring-white/20">
+                        <Sparkles className="size-6 text-yellow-300" />
+                      </span>
+                      <div>
+                        <CardTitle className="text-xl text-white">Assistant FanMilk</CardTitle>
+                        <CardDescription className="mt-1 text-blue-100">
+                          Analyse automatique des commentaires de difficultés pour la période et le dépôt sélectionnés.
+                        </CardDescription>
+                      </div>
+                    </div>
+                    <Badge className="border-white/20 bg-white/15 text-white hover:bg-white/15">
+                      {issues.length} commentaire(s) analysé(s)
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-5 p-5 sm:p-6">
+                  {issues.length === 0 ? (
+                    <div className="rounded-2xl border border-white/15 bg-white/10 p-5 text-sm text-blue-50">
+                      Aucun problème signalé sur cette sélection. L’analyse se mettra à jour dès qu’un commentaire sera reçu.
+                    </div>
+                  ) : (
+                    <>
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        {[
+                          ['À traiter', openIssuesCount, 'Signalements ouverts ou en cours'],
+                          ['Résolus', resolvedIssuesCount, 'Dossiers déjà clôturés'],
+                          ['Prioritaires', urgentIssues.length, 'Commentaires nécessitant une attention'],
+                        ].map(([label, value, detail]) => (
+                          <div key={String(label)} className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
+                            <p className="text-xs font-bold uppercase tracking-wider text-blue-100">{label}</p>
+                            <p className="mt-1 text-3xl font-black">{value}</p>
+                            <p className="mt-1 text-xs text-blue-100">{detail}</p>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
+                        <div className="rounded-2xl bg-white p-5 text-slate-900">
+                          <h3 className="font-black text-[#082f70]">Thèmes détectés</h3>
+                          <div className="mt-4 space-y-3">
+                            {issueThemes.slice(0, 5).map(([theme, count]) => (
+                              <div key={theme}>
+                                <div className="mb-1 flex items-center justify-between gap-3 text-sm">
+                                  <span className="font-semibold">{theme}</span>
+                                  <strong>{count}</strong>
+                                </div>
+                                <div className="h-2 overflow-hidden rounded-full bg-blue-50">
+                                  <div className="h-full rounded-full bg-[#0a4ea8]" style={{ width: `${Math.max((count * 100) / issues.length, 8)}%` }} />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="rounded-2xl bg-white p-5 text-slate-900">
+                          <h3 className="flex items-center gap-2 font-black text-[#082f70]"><MessageSquareText className="size-5" /> Commentaires prioritaires</h3>
+                          <div className="mt-4 space-y-3">
+                            {(urgentIssues.length ? urgentIssues : issues.filter((issue) => issue.state !== 'resolue')).slice(0, 3).map((issue) => (
+                              <div key={issue.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <strong className="text-sm">{issue.seller} · {issue.depot}</strong>
+                                  <Badge variant="outline" className="bg-white">{issue.category}</Badge>
+                                </div>
+                                <p className="mt-2 text-sm text-slate-600">{issue.description || 'Aucun commentaire détaillé.'}</p>
+                              </div>
+                            ))}
+                            {openIssuesCount === 0 && (
+                              <p className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700">Tous les signalements de cette sélection sont résolus.</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="rounded-2xl border border-yellow-300/30 bg-yellow-300/10 p-5">
+                        <h3 className="font-black text-yellow-200">Actions recommandées</h3>
+                        <ol className="mt-3 grid gap-2 text-sm text-blue-50 lg:grid-cols-2">
+                          {issueRecommendations.map((recommendation, index) => (
+                            <li key={recommendation} className="flex gap-2 rounded-xl bg-white/10 p-3">
+                              <span className="font-black text-yellow-300">{index + 1}.</span>
+                              <span>{recommendation}</span>
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                      <div className="overflow-hidden rounded-2xl border border-white/20 bg-white text-slate-900">
+                        <div className="flex items-center justify-between gap-3 border-b bg-blue-50 px-4 py-3 sm:px-5">
+                          <div>
+                            <h3 className="font-black text-[#082f70]">Discuter avec l’assistant</h3>
+                            <p className="text-xs text-slate-500">Les réponses utilisent les données de la période et du dépôt sélectionnés.</p>
+                          </div>
+                          <span className="flex items-center gap-2 text-xs font-bold text-emerald-700"><span className="size-2 rounded-full bg-emerald-500" /> Disponible</span>
+                        </div>
+                        <div className="max-h-80 space-y-3 overflow-y-auto bg-slate-50/70 p-4 sm:p-5" aria-live="polite">
+                          {aiMessages.map((message) => (
+                            <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                              <div className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${message.role === 'user' ? 'rounded-br-md bg-[#0a4ea8] text-white' : 'rounded-bl-md border bg-white text-slate-700 shadow-sm'}`}>
+                                {message.text}
+                              </div>
+                            </div>
+                          ))}
+                          {aiThinking && (
+                            <div className="flex justify-start">
+                              <div className="flex items-center gap-2 rounded-2xl rounded-bl-md border bg-white px-4 py-3 text-sm text-slate-500 shadow-sm">
+                                <RefreshCw className="size-4 animate-spin" /> Analyse des données…
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        <div className="border-t p-4 sm:p-5">
+                          <div className="mb-3 flex flex-wrap gap-2">
+                            {['Quels problèmes sont prioritaires ?', 'Quels thèmes reviennent souvent ?', 'Que dois-je faire maintenant ?'].map((prompt) => (
+                              <button key={prompt} type="button" disabled={aiThinking} onClick={() => void askIssueAssistant(prompt)} className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-[#0a4ea8] transition hover:bg-blue-100 disabled:opacity-50">
+                                {prompt}
+                              </button>
+                            ))}
+                          </div>
+                          <form onSubmit={(event) => { event.preventDefault(); void askIssueAssistant(aiQuestion); }} className="flex gap-2">
+                            <Input value={aiQuestion} onChange={(event) => setAiQuestion(event.target.value)} placeholder="Écrivez votre question à l’assistant…" aria-label="Question pour l’assistant IA FanMilk" className="h-11 bg-white" />
+                            <Button type="submit" disabled={!aiQuestion.trim() || aiThinking} className="h-11 shrink-0 bg-[#0a4ea8] hover:bg-[#083f89]">
+                              <Send className="size-4" /> <span className="hidden sm:inline">Envoyer</span>
+                            </Button>
+                          </form>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+              )}
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 {[
                   ['CA de la période', analytics.current_revenue.toLocaleString('fr-FR') + ' FCFA'],
@@ -1696,6 +2001,7 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                       .map((row) => (
                       <div
                         key={row.id}
+                        id={`difficulty-${row.id}`}
                         className={`rounded-2xl border p-4 ${
                           row.state === 'resolue'
                             ? 'border-emerald-200 bg-emerald-50/60'
@@ -1729,19 +2035,10 @@ export function AdminDashboard({ view = 'pilotage' }: { view?: AdminView }) {
                         <p className="mt-1 text-sm text-slate-600">
                           {row.description}
                         </p>
-                        <div className="mt-3 flex items-center justify-between">
+                        <div className="mt-3 flex flex-col gap-3">
                           <small className="text-slate-400">{row.date}</small>
-                          {row.state !== 'resolue' && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              disabled={!can('difficultes.edit')} onClick={() => nextIssueState(row.id)}
-                            >
-                              {row.state === 'ouverte'
-                                ? 'Passer en cours'
-                                : 'Marquer résolue'}
-                            </Button>
-                          )}
+                          <DifficultyFollowup issue={row} assignees={assignees} editable={can('difficultes.edit')} onSaved={() => loadDashboard(true)} />
+
                         </div>
                       </div>
                     ))}
